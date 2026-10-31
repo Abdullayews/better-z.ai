@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Z.ai Auto-Resend",
+  "version": "1.0.0",
+  "description": "Sistem məşğul (system is busy) və digər xətalarda mesajı attachment-larla birlikdə avtomatik yenidən göndərir.",
+  "minimum_chrome_version": "111",
+  "permissions": ["storage", "notifications", "unlimitedStorage"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Z.ai Auto-Resend",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.z.ai/*"],
+      "js": ["inject.bundle.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://chat.z.ai/*"],
+      "js": ["core/classifier.js", "core/backoff.js", "core/defaults.js", "content.js"],
+      "css": ["pill.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
