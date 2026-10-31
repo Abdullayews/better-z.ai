@@ -32,7 +32,7 @@ xətalarında mesajınızı **attachment-larla birlikdə** avtomatik yenidən g�
 ```
 
 Texniki detallar (bütün bunlar real web tətbiqindən geri mühəndisliklə alınmış
-[`LEGACY_SPEC`](../download/zai_protokol_spec.md) əsasadır):
+LEGACY_SPEC (zai_protokol_spec.md — ZaiMobile layihəsindən) əsasadır):
 
 | Hissə | İzah |
 |---|---|
