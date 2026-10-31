@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Asılıqlar
+        run: npm ci
+
+      - name: Prod build (zip-lər)
+        run: python3 build.py
+
+      - name: SHA256SUMS
+        run: |
+          cd dist/zips
+          rm -f SHA256SUMS.txt
+          sha256sum *.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: GitHub Release (pre-release, beta)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --prerelease \
+            --title "Z.ai Auto-Resend ${GITHUB_REF_NAME}" \
+            --notes "$(cat <<'EOF'
+          ## Z.ai Auto-Resend — ${GITHUB_REF_NAME} (beta)
+
+          **system is busy** və digər göndərmə xətalarında mesajı attachment-larla
+          birlikdə avtomatik yenidən göndərən extension (Chrome + Firefox).
+
+          ### Quraşdırma
+          - **Chrome**: zip-i açın → chrome://extensions → Developer mode → Load unpacked → `chrome/`
+          - **Firefox**: zip-i açın → about:debugging → Load Temporary Add-on → `firefox/manifest.json`
+
+          ### Bu versiyada
+          - Şəbəkə-səviyyəli capture/replay (POST /api/v2/chat/completions)
+          - X-Signature yenidən imzalama (köhnə imzalar üçün)
+          - global_limit / 429+Retry-After / WAF / axın-kəsintisi → avto-retry
+          - 400/401/captcha → fatal bildiriş (avto-retry yoxdur)
+          - Uğurda persist (POST /api/v1/chats/{id}) + avto-yenilə
+          - Popup: vəziyyət, parametrlər, şəbəkə jurnalı; HUD pill; bildirişlər
+
+          Testlər: unit 30/30, Chrome E2E 6/6, Firefox E2E 4/4, addons-linter 0/0.
+          SHA256SUMS.txt faylında imzalar.
+          EOF
+          )" \
+            dist/zips/*.zip dist/zips/SHA256SUMS.txt

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<title>Z.ai Auto-Resend</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+  <div>
+    <div class="t">Z.ai <b>Auto-Resend</b></div>
+    <div class="s" id="conn">—</div>
+  </div>
+  <span class="logo">↻</span>
+</header>
+
+<section id="secState">
+  <h3>Vəziyyət</h3>
+  <div id="recList" class="recs"><div class="empty">Gözləyən mesaj yoxdur — hər şey qaydasındadır.</div></div>
+</section>
+
+<section>
+  <h3 class="h-row"><span>Parametrlər</span><button id="btnSave" class="mini">Yadda saxla</button></h3>
+  <div class="grid">
+    <label>Maks. cəhd<input id="sMaxRetries" type="number" min="1" max="30"></label>
+    <label>İlkin gecikmə, ms<input id="sInitialDelay" type="number" min="300" step="100"></label>
+    <label>Backoff amili<input id="sFactor" type="number" min="1" step="0.1"></label>
+    <label>Maks. gecikmə, ms<input id="sMaxDelay" type="number" min="1000" step="1000"></label>
+  </div>
+  <div class="toggles">
+    <label><input id="sResign" type="checkbox"> İmza yeniləməsi (köhnə imzaları yenidən imzala)</label>
+    <label><input id="sPersist" type="checkbox"> Uğurdan sonra tarixçəni yaz (persist)</label>
+    <label><input id="sAutoReload" type="checkbox"> Uğurdan sonra səhifəni yenilə</label>
+    <label><input id="sNotify" type="checkbox"> Bildirişlər</label>
+    <label><input id="sDomFallback" type="checkbox"> DOM ehtiyat rejimi (yalnız "busy" mətni görünsə retry)</label>
+  </div>
+</section>
+
+<section>
+  <h3 class="h-row"><span>Şəbəkə jurnalı</span><button id="btnClearLog" class="mini">Təmizlə</button></h3>
+  <pre id="logBox">…</pre>
+</section>
+
+<footer>v1.0.0 · yalnız chat.z.ai üçün</footer>
+
+<script src="popup.js"></script>
+</body>
+</html>

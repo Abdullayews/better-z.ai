@@ -1,0 +1,20 @@
+{
+  "name": "zai-autoresend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Z.ai avto-yenidən göndərmə extension-ı — build və test alətləri",
+  "scripts": {
+    "build": "python3 build.py",
+    "build:test": "python3 build.py --test",
+    "unit": "node --test 'test/unit/*.test.mjs'",
+    "e2e:chrome": "xvfb-run -a node test/e2e/chrome.spec.mjs",
+    "e2e:firefox": "python3 test/e2e/firefox_spec.py",
+    "e2e:chrome:headless": "node test/e2e/chrome.spec.mjs",
+    "lint:firefox": "addons-linter dist/firefox",
+    "mock": "node test/mock/server.js"
+  },
+  "devDependencies": {
+    "addons-linter": "^7.9.0",
+    "playwright": "^1.57.0"
+  }
+}

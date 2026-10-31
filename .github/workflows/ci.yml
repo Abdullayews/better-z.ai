@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Asılıqlar
+        run: npm ci
+
+      - name: Brauzerlər + alətlər
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright install firefox
+          pip install marionette_driver
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb xauth
+
+      - name: Test build
+        run: python3 build.py --test
+
+      - name: Unit testlər (imza cross-implementation daxil)
+        run: node --test 'test/unit/*.test.mjs'
+
+      - name: Chrome E2E (xvfb)
+        run: xvfb-run -a node test/e2e/chrome.spec.mjs
+
+      - name: Firefox E2E (Marionette)
+        run: python3 test/e2e/firefox_spec.py
+
+      - name: addons-linter
+        run: npx addons-linter dist/firefox
+
+      - name: Prod build
+        run: python3 build.py
+
+      - name: Zip-ləri yüklə
+        uses: actions/upload-artifact@v4
+        with:
+          name: zai-autoresend-zips
+          path: dist/zips/

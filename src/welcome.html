@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<title>Z.ai Auto-Resend — Xoş gəlmisiniz</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; background: #0f0f17; color: #f2f2f5;
+    font: 15px/1.7 system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 40px 20px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  h1 span { color: #4099ff; }
+  p.sub { color: #9a9aa8; margin-top: 0; }
+  .card {
+    background: #171725; border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px; padding: 18px 20px; margin: 18px 0;
+  }
+  .card h2 { font-size: 17px; margin: 0 0 8px; }
+  ol, ul { padding-left: 22px; margin: 8px 0; }
+  li { margin: 5px 0; }
+  code { background: #22223a; border-radius: 6px; padding: 2px 7px; font-size: 13px; }
+  .ok { color: #10b981; font-weight: 600; }
+  .footer { color: #74747e; font-size: 12.5px; margin-top: 26px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Z.ai <span>Auto-Resend</span></h1>
+  <p class="sub">system is busy və digər xətalarda mesajınızı attachment-larla birlikdə avtomatik yenidən göndərən extension.</p>
+
+  <div class="card">
+    <h2>Necə işləyir?</h2>
+    <ol>
+      <li>chat.z.ai mesaj göndərəndə extension bu sorğunu <b>yaxalayır</b> (POST /api/v2/chat/completions — attachment-lar da daxil olmaqla).</li>
+      <li>"Sistem məşğul" (global_limit), WAF bloku, 429, şəbəkə kəsintisi kimi <b>yenidən cəhdlənəbilən</b> xətalar avtomatik olaraq eksponensial gecikmə ilə (5s → 10s → 20s …) təkrarlanır.</li>
+      <li>İmza (X-Signature) köhnələrsə — 4 dəqiqədən sonra — extension sorğunu <b>yenidən imzalayır</b>, ona görə retry-lər istənilən vaxt işləyir.</li>
+      <li>Uğurlu retry-dan sonra tarixçə serverə yazılır (persist) və səhifə avtomatik yenilənir → mesajınız itmir, attachment-larınız itmir. <span class="ok">✓</span></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Yoxlama (30 saniyə)</h2>
+    <ol>
+      <li><a href="https://chat.z.ai/" target="_blank">chat.z.ai</a>-ı açın.</li>
+      <li>Brauzer konsolunda (F12) yazın: <code>window.__zaiExtInject</code> → <code>true</code> qayıtmalıdır.</li>
+      <li>Bir mesaj göndərin; toolbar ikonkasına klik edin — "Şəbəkə jurnalı"nda <code>completion → 200 (N əlavə)</code> sətri görünməlidir.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Parametrlər</h2>
+    <ul>
+      <li>İkonkaya klik → <b>Parametrlər</b> bölməsindən: maksimum cəhdlər (6), ilkin gecikmə (5s), imza yeniləmə, avto-yeniləmə və s.</li>
+      <li>HUD (sağ altdakı kart) retry gedişatını canlı göstərir; "İndi cəhd et" — dərhal, "✕" — ləğv.</li>
+    </ul>
+  </div>
+
+  <p class="footer">Yalnız chat.z.ai-də işləyir. Heç bir məlumat kənar serverə göndərilmir — tutulan sorğular yalnız brauzerin yaddaşında saxlanılır.</p>
+</div>
+</body>
+</html>
