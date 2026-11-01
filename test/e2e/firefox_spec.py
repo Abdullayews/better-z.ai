@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Z.ai Auto-Resend — Firefox E2E (Marionette vasitəsilə).
+"""better z.ai — Firefox E2E (Marionette vasitəsilə).
 
 Playwright Firefox-da extension yükləməyi dəstəkləmir; ona görə Marionette
 (gecko daxili protokolu) + Addon.install(temp) istifadə edirik.
@@ -260,7 +260,7 @@ def main():
             raise AssertionError("kliksiz avtomatik preview bloklanmadı: %s" % (st,))
         print("  ✔ FFC klik/pəncərəsiz öz-özünə açılan preview də bağlandı (%s)" % st.get("closedBy"))
 
-        # Ssenari FF-D (v1.2.0): POPAP BAĞLAYICI — "peak hours" popapı
+        # Ssenari FF-D: POPAP BAĞLAYICI — "peak hours" popapı
         # öz-özünə açılanda avtomatik bağlanmalıdır (parol dialoqu yoxlanılmır —
         # Chrome N3-də etibarlı kliklə; Marionette atom-kliki eyni məntiqi işlədir).
         http("POST", BASE + "/_ctl", {"script": ["sse_ok"], "resetPersist": False})
@@ -279,7 +279,7 @@ def main():
             raise AssertionError("peak hours popapı bağlanmadı")
         print("  ✔ FFD 'Currently in peak hours' popapı avtomatik bağlandı")
 
-        # Ssenari FF-E (v1.2.0): QARALAMA MÜHAFİZƏSİ — reload-dan sonra
+        # Ssenari FF-E: QARALAMA MÜHAFİZƏSİ — reload-dan sonra
         # yazılmış mətn "Bərpa et" ilə geri qaytarılmalıdır
         comp = client.find_element(By.ID, "composer")
         comp.send_keys("FF qaralama testi 42")

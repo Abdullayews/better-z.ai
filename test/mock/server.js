@@ -20,7 +20,7 @@ const PORT = Number(process.env.PORT || 8907);
 const KEY = 'key-@@@@)))()((9))-xxxx&&&%%%%%';
 const CHAT_ID = 'mock-chat-1';
 
-/* v1.3.0: tam backup üçün ikinci "köhnə" söhbət (siyahı + detal) */
+/* tam backup üçün ikinci "köhnə" söhbət (siyahı + detal) */
 const CHAT2_ID = 'mock-chat-2';
 function secondChat() {
   return {
@@ -268,7 +268,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify(state.persistedChat || defaultChat()));
         return;
       }
-      /* v1.3.0: chat siyahısı — GET /api/v1/chats/?page=N&type=default → massiv
+      /* chat siyahısı — GET /api/v1/chats/?page=N&type=default → massiv
          (protokol spec-i: {id, title, updated_at}; səhifə 2 boşdur) */
       if (p === '/api/v1/chats/' || p === '/api/v1/chats') {
         const page = Number(u.searchParams.get('page') || '1');

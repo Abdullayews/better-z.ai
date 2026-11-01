@@ -115,10 +115,12 @@ async function dumpState(name) {
     const p2 = await ctx.newPage();
     await p2.goto('chrome-extension://' + id + '/popup/popup.html');
     await p2.waitForTimeout(1500);
-    const st = await p2.evaluate(() => ({
-      conn: document.getElementById('conn').textContent,
-      recs: document.getElementById('recList').innerText,
-      log: document.getElementById('logBox').textContent
+    const st = await p2.evaluate(() => new Promise((res) => {
+      chrome.storage.local.get(['log'], (g) => res({
+        conn: document.getElementById('conn').textContent,
+        recs: document.getElementById('recList').innerText,
+        log: ((g && g.log) || []).join('\n')
+      }));
     }));
     const pill = await page.evaluate(() => {
       const el = document.querySelector('.zai-ext-pill');
@@ -161,7 +163,7 @@ async function extPage(path) {
   return p;
 }
 
-/* v1.3.0: background-ın commands listener-i nə edirsə onu təkrarlayır —
+/* background-ın commands listener-i nə edirsə onu təkrarlayır —
    canlı tab-ə CMD_SHORTCUT mesajı göndərir (real klaviatura basqısının yolu) */
 async function cmdToTab(cmd) {
   const p = await extPage('/popup/popup.html');
@@ -335,13 +337,13 @@ scenarios.G = async () => {
   if (st.opens !== 1) throw new Error('preview gözləniləndən çox açıldı: ' + st.opens);
   ok('G1 uğurdan sonra avtomatik açılan preview bağlanıldı (' + st.closedBy + ' ilə)');
 
-  // jurnalda qeyd olmalıdır
+  // daxili qeydlərdə (storage.log) görünməlidir
   const p2 = await extPage('/popup/popup.html');
   await p2.waitForTimeout(1200);
-  const logTxt = await p2.evaluate(() => document.getElementById('logBox').textContent);
+  const logTxt = await p2.evaluate(() => new Promise((r) => chrome.storage.local.get(['log'], (g) => r(((g && g.log) || []).join('\n')))));
   await p2.close();
-  if (!/preview bloklandı/i.test(logTxt)) throw new Error('jurnalda preview qeydi yoxdur: ' + logTxt.slice(0, 200));
-  ok('G2 jurnalda "preview bloklandı" qeydi göründü');
+  if (!/preview bloklandı/i.test(logTxt)) throw new Error('qeydlərdə preview qeydi yoxdur: ' + logTxt.slice(0, 200));
+  ok('G2 qeydlərdə "preview bloklandı" yazısı göründü');
 
   // fayl əlavəsi sonrası avto-preview də bloklanır
   await page.evaluate(() => { window.__mockAutoPreviewOnAttach = true; });
@@ -430,17 +432,17 @@ scenarios.J = async () => {
   if (s.blockAutoPreview !== true) throw new Error('geri qaytarıla bilmədi');
   ok('J2 dəyişikliklər avtomatik yadda saxlanılır (başqa açarlar itmir)');
 
-  // v1.2.0: yeni bölmələr mövcuddur və standartları düzgündür
+  // yeni bölmələr mövcuddur və standartları düzgündür
   const dClosePopups = await p.isChecked('#sClosePopups');
   const dDraftGuard = await p.isChecked('#sDraftGuard');
   const dSerial = await p.isChecked('#sSerial');
   const dDup = await p.isChecked('#sDupGuard');
   if (!dClosePopups || !dDraftGuard || !dSerial || !dDup) {
-    throw new Error('v1.2.0 standartları deyil: closePopups=' + dClosePopups + ' draftGuard=' + dDraftGuard + ' serial=' + dSerial + ' dup=' + dDup);
+    throw new Error('standartlar düzgün deyil: closePopups=' + dClosePopups + ' draftGuard=' + dDraftGuard + ' serial=' + dSerial + ' dup=' + dDup);
   }
   const snipRows = await p.locator('#snipList .snip-row').count();
   if (snipRows < 1) throw new Error('standart snippetlər yoxdur');
-  ok('J3 v1.2.0 bölmələri: popap/qaralama/serial/dublikat standart AKTİV, snippetlər hazır');
+  ok('J3 əlavə bölmələr: popap/qaralama/serial/dublikat standart AKTİV, snippetlər hazır');
   await p.close();
 
   // popup-da da eyni açar düzgün vəziyyətdədir
@@ -707,13 +709,13 @@ scenarios.T = async () => {
   await sleep(2200);
   const p = await extPage('/popup/popup.html');
   await p.waitForTimeout(1200);
-  const logTxt = await p.evaluate(() => document.getElementById('logBox').textContent);
+  const logTxt = await p.evaluate(() => new Promise((r) => chrome.storage.local.get(['log'], (g) => r(((g && g.log) || []).join('\n')))));
   await p.close();
-  if (!/bildiriş: cavab hazırdır/.test(logTxt)) throw new Error('jurnalda bildiriş qeydi yoxdur: ' + logTxt.slice(0, 300));
-  ok('T tab arxa planda olanda "cavab hazırdır" bildirişi göndərildi (jurnalda qeyd)');
+  if (!/bildiriş: cavab hazırdır/.test(logTxt)) throw new Error('qeydlərdə bildiriş yoxdur: ' + logTxt.slice(0, 300));
+  ok('T tab arxa planda olanda "cavab hazırdır" bildirişi göndərildi');
 };
 
-/* ---------- v1.3.0 ssenariləri ---------- */
+/* ssenarilər */
 
 scenarios.U = async () => {
   await setup(['sse_ok']);
@@ -837,16 +839,16 @@ scenarios.W = async () => {
   ok('W2 chat siyahısı düzgün gətirildi (GET /api/v1/chats/?page=1)');
   const stW = await p.evaluate(() => new Promise((r) => chrome.storage.local.get(['stats'], (g) => r((g && g.stats) || {}))));
   if ((stW.backups || 0) < 1) throw new Error('stats.backups artmadı: ' + JSON.stringify(stW));
-  // popup jurnalı ~1s intervallə təzələnir — qeyd görünənə qədər gözlə
+  // daxili qeydlər storage-da təzələnir — yazı görünənə qədər gözlə
   let logOk = false;
   let logTxt = '';
   for (let i = 0; i < 25; i++) {
-    logTxt = await p.evaluate(() => document.getElementById('logBox').textContent);
+    logTxt = await p.evaluate(() => new Promise((r) => chrome.storage.local.get(['log'], (g) => r(((g && g.log) || []).join('\n')))));
     if (/tam backup hazır: 2 söhbət/.test(logTxt)) { logOk = true; break; }
     await sleep(600);
   }
-  if (!logOk) throw new Error('jurnalda backup qeydi yoxdur: ' + logTxt.slice(0, 200));
-  ok('W3 stats.backups=' + stW.backups + ' + jurnalda qeyd');
+  if (!logOk) throw new Error('qeydlərdə backup yazısı yoxdur: ' + logTxt.slice(0, 200));
+  ok('W3 stats.backups=' + stW.backups + ' + qeydlərdə yazı');
 
   // limit: backupMaxChats=1 → yalnız 1 söhbət
   await sleep(3000); // popup düyməsi yenidən aktiv olsun
@@ -873,7 +875,7 @@ scenarios.W = async () => {
 };
 
 async function main() {
-  console.log('== Z.ai Auto-Resend — Chromium E2E ==');
+  console.log('== better z.ai — Chromium E2E ==');
   serverProc = await waitReady();
   profileDir = mkdtempSync(path.join(tmpdir(), 'zaiext-profile-'));
   ctx = await chromium.launchPersistentContext(profileDir, {
@@ -888,7 +890,7 @@ async function main() {
   });
   page = ctx.pages()[0] || await ctx.newPage();
 
-  // v1.2.0: S ssenarisi üçün mübadilə buferi icazələri
+  // S ssenarisi üçün mübadilə buferi icazələri
   try {
     await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
   } catch (e) { console.log('  (clipboard icazəsi verilmədi: ' + e.message + ')'); }
@@ -908,7 +910,10 @@ async function main() {
     return;
   }
 
+  // ONLY=A,B,C mühiti ilə ssenari alt çoxu işə salına bilər (10 dəq Bash limitinə görə)
+  const ONLY = process.env.ONLY ? process.env.ONLY.split(',').map((s) => s.trim()) : null;
   for (const [name, fn] of Object.entries(scenarios)) {
+    if (ONLY && !ONLY.includes(name)) continue;
     console.log('— Ssenari ' + name);
     try {
       await fn();

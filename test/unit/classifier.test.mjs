@@ -108,7 +108,7 @@ test('classifyBodyText — 200 JSON busy', () => {
   assert.equal(r.outcome, 'retry');
 });
 
-/* ---------- v1.3.0: söz sayğacı ---------- */
+/* ---------- söz sayğacı ---------- */
 
 test('countWords — boş və boşluqlu mətnlər', () => {
   assert.equal(C.countWords(''), 0);

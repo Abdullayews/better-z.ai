@@ -43,7 +43,7 @@ test('applyRetryAfter — clamp 1s..300s', () => {
   assert.equal(C.applyRetryAfter(5000, 999999), 300000);
 });
 
-/* ---------- v1.3.0: adaptiv backoff (congestion amili) ---------- */
+/* ---------- adaptiv backoff (congestion amili) ---------- */
 
 test('congestionMultiplier — 0→x1.0, 1→x1.5, 2→x2.0', () => {
   assert.equal(C.congestionMultiplier(0), 1.0);
