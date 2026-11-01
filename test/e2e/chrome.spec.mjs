@@ -25,6 +25,10 @@
  *   R) v1.2.0 STATİSTİKA: bütün sayğaclar doludur
  *   S) v1.2.0 MESAJ XİLASI: failed_final mesajın TAM mətni ⧉ ilə kopyalanır
  *   T) v1.2.0 BILDİRİŞ: tab gizli olanda "cavab hazırdır" (jurnalda)
+ *   U) v1.3.0 SÖZ SAYĞACI: yazanda görünür, boşanda gizlənir, parametrlə idarə
+ *   V) v1.3.0 QISAYOLLAR: Alt+R (retry-now), Alt+P (pauza), Alt+E (ixrac) —
+ *      background-ın göndərdiyi eyni CMD_SHORTCUT mesajı ilə; söndürülmə hali
+ *   W) v1.3.0 TAM BACKUP: chat siyahısı + detallar → 2 söhbət, limit hörməti
  */
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -155,6 +159,29 @@ async function extPage(path) {
   const p = await ctx.newPage();
   await p.goto('chrome-extension://' + id + path);
   return p;
+}
+
+/* v1.3.0: background-ın commands listener-i nə edirsə onu təkrarlayır —
+   canlı tab-ə CMD_SHORTCUT mesajı göndərir (real klaviatura basqısının yolu) */
+async function cmdToTab(cmd) {
+  const p = await extPage('/popup/popup.html');
+  const r = await p.evaluate((c) => new Promise((res) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'GET_TAB' }, (t) => {
+        if (!t || !t.tab) return res(false);
+        chrome.tabs.sendMessage(t.tab.id, c, () => res(!chrome.runtime.lastError));
+      });
+    } catch (e) { res(false); }
+  }), cmd);
+  await p.close();
+  return r;
+}
+
+async function storageGet(keys) {
+  const p = await extPage('/popup/popup.html');
+  const v = await p.evaluate((k) => new Promise((r) => chrome.storage.local.get(k, (g) => r(g || {}))), keys);
+  await p.close();
+  return v;
 }
 
 const scenarios = {};
@@ -684,6 +711,165 @@ scenarios.T = async () => {
   await p.close();
   if (!/bildiriş: cavab hazırdır/.test(logTxt)) throw new Error('jurnalda bildiriş qeydi yoxdur: ' + logTxt.slice(0, 300));
   ok('T tab arxa planda olanda "cavab hazırdır" bildirişi göndərildi (jurnalda qeyd)');
+};
+
+/* ---------- v1.3.0 ssenariləri ---------- */
+
+scenarios.U = async () => {
+  await setup(['sse_ok']);
+  await page.fill('#composer', 'bir iki üç dörd');
+  await page.waitForFunction(() => {
+    const el = document.querySelector('.zai-ext-counter');
+    return el && el.style.display !== 'none' && /4 söz/.test(el.textContent || '');
+  }, null, { timeout: 8000 });
+  const txt = await page.evaluate(() => document.querySelector('.zai-ext-counter').textContent);
+  if (!/4 söz · 15 simvol/.test(txt)) throw new Error('sayğaç mətni yanlış: ' + JSON.stringify(txt));
+  ok('U1 söz sayğacı görünür: "' + txt + '"');
+  await page.fill('#composer', '');
+  await page.waitForFunction(() => {
+    const el = document.querySelector('.zai-ext-counter');
+    return !el || el.style.display === 'none';
+  }, null, { timeout: 8000 });
+  ok('U2 kompozitor boş — sayğaç gizlənir');
+  // parametr söndürüldükdə element DOM-dan silinir
+  const p = await extPage('/options/options.html');
+  await p.waitForSelector('#sWordCounter', { timeout: 5000 });
+  await p.uncheck('#sWordCounter');
+  await page.waitForFunction(() => !document.querySelector('.zai-ext-counter'), null, { timeout: 10000 });
+  ok('U3 parametr söndürüldü — sayğaç DOM-dan silindi');
+  await p.check('#sWordCounter');
+  await p.waitForTimeout(1200);
+  await p.close();
+};
+
+scenarios.V = async () => {
+  await setup(['busy', 'sse_ok']);
+  await send('qisayol testi');
+  await page.waitForSelector('#messages .err', { timeout: 8000 });
+  await pollPill('wait', 8000);
+
+  // Alt+R → gözləyən mesaj dərhal yenidən göndərilir
+  const r1 = await cmdToTab({ cmd: 'CMD_SHORTCUT', action: 'retry-now' });
+  if (!r1) throw new Error('CMD_SHORTCUT (retry-now) göndərilə bilmədi');
+  const logV = await pollLog((l) => l.requests.length >= 2, 20000, 'V: retry-now işə düşmədi');
+  if (!logV.requests[1].sigOk) throw new Error('imza keçilmədi');
+  ok('V1 Alt+R (retry-now) — gözləyən mesaj dərhal göndərildi');
+  await sleep(1500); // avto-reload bitsin
+
+  // Alt+P → pauza açılır
+  const r2 = await cmdToTab({ cmd: 'CMD_SHORTCUT', action: 'toggle-pause' });
+  if (!r2) throw new Error('toggle-pause göndərilə bilmədi');
+  let pv = null;
+  for (let i = 0; i < 20; i++) {
+    const g = await storageGet(['paused']);
+    if (g.paused === true) { pv = true; break; }
+    await sleep(400);
+  }
+  if (!pv) throw new Error('Alt+P pauzanı aktivləşdirmədi');
+  ok('V2 Alt+P (toggle-pause) — pauza aktivləşdi');
+
+  // Alt+P ikinci dəfə → pauza dayanır
+  await cmdToTab({ cmd: 'CMD_SHORTCUT', action: 'toggle-pause' });
+  let pv2 = null;
+  for (let i = 0; i < 20; i++) {
+    const g = await storageGet(['paused']);
+    if (g.paused === false) { pv2 = true; break; }
+    await sleep(400);
+  }
+  if (!pv2) throw new Error('Alt+P pauzanı dayandırmadı');
+  ok('V3 Alt+P ikinci dəfə — pauza dayandırıldı');
+
+  // Alt+E → cari söhbətin ixracı
+  const before = (await storageGet(['lastExport'])).lastExport;
+  const r3 = await cmdToTab({ cmd: 'CMD_SHORTCUT', action: 'export-chat' });
+  if (!r3) throw new Error('export-chat göndərilə bilmədi');
+  let le = null;
+  for (let i = 0; i < 25; i++) {
+    const g = await storageGet(['lastExport']);
+    if (g.lastExport && (!before || g.lastExport.at > (before.at || 0))) { le = g.lastExport; break; }
+    await sleep(500);
+  }
+  if (!le || !le.md) throw new Error('Alt+E ixracı yeniləmədi');
+  ok('V4 Alt+E (export-chat) — son ixrac yeniləndi (' + le.name + ')');
+
+  // parametr söndürüldükdə qısayol reaksiya vermir
+  const po = await extPage('/options/options.html');
+  await po.waitForSelector('#sShortcuts', { timeout: 5000 });
+  await po.uncheck('#sShortcuts');
+  await po.waitForTimeout(1400);
+  await po.close();
+  await cmdToTab({ cmd: 'CMD_SHORTCUT', action: 'toggle-pause' });
+  await sleep(1500);
+  const g2 = await storageGet(['paused', 'stats']);
+  if (g2.paused === true) throw new Error('söndürülmüş qısayol işlədi!');
+  ok('V5 parametr söndürüldü — qısayol reaksiya vermir');
+  const po2 = await extPage('/options/options.html');
+  await po2.waitForSelector('#sShortcuts', { timeout: 5000 });
+  await po2.check('#sShortcuts');
+  await po2.waitForTimeout(1200);
+  await po2.close();
+  if (((g2.stats || {}).shortcutActions || 0) < 4) {
+    throw new Error('stats.shortcutActions artmadı: ' + JSON.stringify(g2.stats));
+  }
+  ok('V6 qısayol statistikası: ' + g2.stats.shortcutActions + ' istifadə');
+};
+
+scenarios.W = async () => {
+  await setup(['sse_ok']);
+  await send('backup testi mesaji');
+  await page.waitForFunction(() => (document.body.innerText || '').includes('Salam! Bu avtomatik'), null, { timeout: 15000 });
+
+  const p = await extPage('/popup/popup.html');
+  await p.waitForSelector('#btnBackup', { timeout: 5000 });
+  await p.click('#btnBackup');
+  let lb = null;
+  for (let i = 0; i < 40; i++) {
+    const g = await p.evaluate(() => new Promise((r) => chrome.storage.local.get(['lastBackup'], (x) => r((x && x.lastBackup) || null))));
+    if (g && g.count === 2) { lb = g; break; }
+    await sleep(500);
+  }
+  if (!lb || lb.count !== 2) throw new Error('tam backup gəlmədi: ' + JSON.stringify(lb));
+  ok('W1 tam backup hazır: 2 söhbət (mock-chat-1 + mock-chat-2)');
+  const ids = (lb.list || []).map((c) => c.id).sort();
+  if (JSON.stringify(ids) !== JSON.stringify(['mock-chat-1', 'mock-chat-2'])) {
+    throw new Error('backup siyahısı yanlış: ' + JSON.stringify(ids));
+  }
+  ok('W2 chat siyahısı düzgün gətirildi (GET /api/v1/chats/?page=1)');
+  const stW = await p.evaluate(() => new Promise((r) => chrome.storage.local.get(['stats'], (g) => r((g && g.stats) || {}))));
+  if ((stW.backups || 0) < 1) throw new Error('stats.backups artmadı: ' + JSON.stringify(stW));
+  // popup jurnalı ~1s intervallə təzələnir — qeyd görünənə qədər gözlə
+  let logOk = false;
+  let logTxt = '';
+  for (let i = 0; i < 25; i++) {
+    logTxt = await p.evaluate(() => document.getElementById('logBox').textContent);
+    if (/tam backup hazır: 2 söhbət/.test(logTxt)) { logOk = true; break; }
+    await sleep(600);
+  }
+  if (!logOk) throw new Error('jurnalda backup qeydi yoxdur: ' + logTxt.slice(0, 200));
+  ok('W3 stats.backups=' + stW.backups + ' + jurnalda qeyd');
+
+  // limit: backupMaxChats=1 → yalnız 1 söhbət
+  await sleep(3000); // popup düyməsi yenidən aktiv olsun
+  const po = await extPage('/options/options.html');
+  await po.waitForSelector('#sBackupMaxChats', { timeout: 5000 });
+  await po.fill('#sBackupMaxChats', '1');
+  await po.waitForTimeout(1100);
+  await po.close();
+  await p.click('#btnBackup');
+  let lb2 = null;
+  for (let i = 0; i < 40; i++) {
+    const g = await p.evaluate(() => new Promise((r) => chrome.storage.local.get(['lastBackup'], (x) => r((x && x.lastBackup) || null))));
+    if (g && g.count === 1) { lb2 = g; break; }
+    await sleep(500);
+  }
+  if (!lb2 || lb2.count !== 1) throw new Error('backupMaxChats limiti işləmədi: ' + JSON.stringify(lb2));
+  ok('W4 backupMaxChats=1 limiti hörmət olunur (1 söhbət)');
+  const po2 = await extPage('/options/options.html');
+  await po2.waitForSelector('#sBackupMaxChats', { timeout: 5000 });
+  await po2.fill('#sBackupMaxChats', '50');
+  await po2.waitForTimeout(1100);
+  await po2.close();
+  await p.close();
 };
 
 async function main() {
