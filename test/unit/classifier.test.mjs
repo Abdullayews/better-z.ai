@@ -107,3 +107,23 @@ test('classifyBodyText — 200 JSON busy', () => {
   const r = C.classifyBodyText('{"detail":"The system is busy. Please try again later."}');
   assert.equal(r.outcome, 'retry');
 });
+
+/* ---------- v1.3.0: söz sayğacı ---------- */
+
+test('countWords — boş və boşluqlu mətnlər', () => {
+  assert.equal(C.countWords(''), 0);
+  assert.equal(C.countWords(null), 0);
+  assert.equal(C.countWords('   '), 0);
+  assert.equal(C.countWords('\n\t  '), 0);
+});
+
+test('countWords — adi və çoxsətirli mətn', () => {
+  assert.equal(C.countWords('salam'), 1);
+  assert.equal(C.countWords('  bir iki üç  '), 3);
+  assert.equal(C.countWords('bir\niki\tüç\tdörd'), 4);
+});
+
+test('countWords — Azərbaycan hərfləri və punktuasiya', () => {
+  assert.equal(C.countWords('Salam, dünya! Necəsən?'), 3);
+  assert.equal(C.countWords('şəkil — fayl.pdf yükləndi'), 4); // «—» ayrı token kimi sayılır
+});

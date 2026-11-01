@@ -20,6 +20,22 @@ const PORT = Number(process.env.PORT || 8907);
 const KEY = 'key-@@@@)))()((9))-xxxx&&&%%%%%';
 const CHAT_ID = 'mock-chat-1';
 
+/* v1.3.0: tam backup üçün ikinci "köhnə" söhbət (siyahı + detal) */
+const CHAT2_ID = 'mock-chat-2';
+function secondChat() {
+  return {
+    id: CHAT2_ID, title: 'Ikinci mock söhbət', models: ['x-preview-l'],
+    history: {
+      messages: {
+        'm1': { id: 'm1', parentId: null, childrenIds: ['m2'], role: 'user', content: 'Köhnə sual 1', timestamp: 1700000000, models: ['x-preview-l'] },
+        'm2': { id: 'm2', parentId: 'm1', childrenIds: [], role: 'assistant', content: 'Köhnə cavab 1 — backup testi.', timestamp: 1700000010, done: true, model: 'x-preview-l' }
+      },
+      currentId: 'm2'
+    },
+    tags: [], timestamp: 1700000010
+  };
+}
+
 const state = {
   script: [],
   uploads: 0,
@@ -250,6 +266,27 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/v1/chats/' + CHAT_ID) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(state.persistedChat || defaultChat()));
+        return;
+      }
+      /* v1.3.0: chat siyahısı — GET /api/v1/chats/?page=N&type=default → massiv
+         (protokol spec-i: {id, title, updated_at}; səhifə 2 boşdur) */
+      if (p === '/api/v1/chats/' || p === '/api/v1/chats') {
+        const page = Number(u.searchParams.get('page') || '1');
+        if (page <= 1) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify([
+            { id: CHAT_ID, title: (state.persistedChat && state.persistedChat.title) || 'Mock söhbət', updated_at: Math.floor(Date.now() / 1000) },
+            { id: CHAT2_ID, title: 'Ikinci mock söhbət', updated_at: 1700000010 }
+          ]));
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('[]');
+        }
+        return;
+      }
+      if (p === '/api/v1/chats/' + CHAT2_ID) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(secondChat()));
         return;
       }
       if (p === '/_log') {

@@ -42,3 +42,28 @@ test('applyRetryAfter — clamp 1s..300s', () => {
   assert.equal(C.applyRetryAfter(5000, 200), 1000);
   assert.equal(C.applyRetryAfter(5000, 999999), 300000);
 });
+
+/* ---------- v1.3.0: adaptiv backoff (congestion amili) ---------- */
+
+test('congestionMultiplier — 0→x1.0, 1→x1.5, 2→x2.0', () => {
+  assert.equal(C.congestionMultiplier(0), 1.0);
+  assert.equal(C.congestionMultiplier(1), 1.5);
+  assert.equal(C.congestionMultiplier(2), 2.0);
+  assert.equal(C.congestionMultiplier(3), 2.5);
+});
+
+test('congestionMultiplier — 4+ → maksimum x3.0 (cap)', () => {
+  assert.equal(C.congestionMultiplier(4), 3.0);
+  assert.equal(C.congestionMultiplier(9), 3.0);
+  assert.equal(C.congestionMultiplier(100), 3.0);
+});
+
+test('congestionMultiplier — mənfi/yalnış dəyirlər x1.0 verir', () => {
+  assert.equal(C.congestionMultiplier(-5), 1.0);
+  assert.equal(C.congestionMultiplier(NaN), 1.0);
+});
+
+test('adaptiv gecikmə = computeDelay × amil (x1.5 halı)', () => {
+  const d = C.computeDelay(2, cfg, () => 0.5); // 2000
+  assert.equal(Math.round(d * C.congestionMultiplier(1)), 3000);
+});
