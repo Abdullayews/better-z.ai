@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — X-Signature imza alqoritmi (LEGACY_SPEC §5, dəqiq port).
+ * better z.ai — X-Signature imza alqoritmi (LEGACY_SPEC §5, dəqiq port).
  *
  * Alqoritm (z.ai web tətbiqindən geri mühəndisliklə alınmışdır):
  *   1. ts = unix ms; requestId = uuid

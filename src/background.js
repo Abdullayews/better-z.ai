@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — background (Chrome MV3 service worker / Firefox event page).
+ * better z.ai — background (Chrome MV3 service worker / Firefox event page).
  * Vəzifəsi: badge, bildirişlər, canlı tab izləməsi (popup üçün), quraşdırma toxumu.
  * (Build zamanı bu faylın ƏVVƏLİNƏ core/defaults.js yapışdırılır.)
  */
@@ -34,9 +34,6 @@
         chrome.storage.local.set({ settings: DEFAULTS, records: {}, log: [] });
       }
     });
-    if (details && details.reason === 'install') {
-      try { chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') }); } catch (e) { /* ignore */ }
-    }
   });
 
   chrome.runtime.onMessage.addListener(function (m, sender, sendResponse) {
@@ -55,7 +52,7 @@
         chrome.notifications.create({
           type: 'basic',
           iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-          title: m.title || 'Z.ai Auto-Resend',
+          title: m.title || 'better z.ai',
           message: m.message || ''
         });
       } catch (e) { /* ignore */ }
@@ -89,7 +86,7 @@
     });
   });
 
-  /* ---------- v1.3.0: klaviatura qısayolları (commands API) ----------
+  /* ---------- klaviatura qısayolları (commands API) ----------
    *
    * Alt+R — gözləyən mesajı dərhal yenidən göndər ("İndi cəhd et")
    * Alt+P — avtomatik retry-ləri dayandır/davam etdir

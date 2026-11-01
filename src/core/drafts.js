@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — Qaralama (draft) köməkçiləri (v1.2.0).
+ * better z.ai — Qaralama (draft) köməkçiləri.
  * Saf funksiyalar — content script (ISOLATED) və Node vm unit-testlərində ortaq.
  */
 (function (root) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Z.ai Auto-Resend — build skripti.
+"""better z.ai — build skripti.
 
 İstifadə:
     python3 build.py          → prod build (dist/chrome + dist/firefox + zip-lər)
@@ -27,7 +27,6 @@ PROD_DEFAULTS = {
     "resign": True, "minResignAgeMs": 240000, "persistAfterRetry": True,
     "autoReload": True, "domFallback": False, "notify": True,
     "blockAutoPreview": True,
-    # v1.2.0
     "draftGuard": True, "draftMaxAgeH": 72,
     "snippetsEnabled": True,
     "snippets": [
@@ -37,7 +36,6 @@ PROD_DEFAULTS = {
     "notifyDone": True, "closePopups": True,
     "popupPatterns": ["peak hours", "currently in peak", "pik saat", "high traffic", "rate limit"],
     "serialRetries": True, "dupGuard": True,
-    # v1.3.0
     "shortcutsEnabled": True, "wordCounter": True, "notifySound": False,
     "adaptiveBackoff": True, "backupMaxChats": 50
 }
@@ -47,7 +45,6 @@ TEST_DEFAULTS = {
     "resign": True, "minResignAgeMs": 300, "persistAfterRetry": True,
     "autoReload": True, "domFallback": False, "notify": True,
     "blockAutoPreview": True,
-    # v1.2.0
     "draftGuard": True, "draftMaxAgeH": 72,
     "snippetsEnabled": True,
     "snippets": [
@@ -57,7 +54,6 @@ TEST_DEFAULTS = {
     "notifyDone": True, "closePopups": True,
     "popupPatterns": ["peak hours", "currently in peak", "pik saat", "high traffic", "rate limit"],
     "serialRetries": True, "dupGuard": True,
-    # v1.3.0
     "shortcutsEnabled": True, "wordCounter": True, "notifySound": False,
     "adaptiveBackoff": True, "backupMaxChats": 50
 }
@@ -94,7 +90,7 @@ def build_browser(browser: str) -> dict:
         encoding="utf-8"
     )
 
-    for f in ["content.js", "pill.css", "welcome.html"]:
+    for f in ["content.js", "pill.css"]:
         shutil.copy2(SRC / f, out / f)
     if browser == "firefox":
         # MV2: world:MAIN dəstəklənmir → WAR + script-teq bootstrap
@@ -113,17 +109,15 @@ def build_browser(browser: str) -> dict:
         for cs in m.get("content_scripts", []):
             # localhost hər portla (portlu pattern Firefox-da qəbul olunmaya bilər)
             cs["matches"] = ["http://localhost/*"] + cs["matches"]
-        if "web_accessible_resources" in m and isinstance(m["web_accessible_resources"], list):
-            pass  # WAR MV2-də massivdir — dəyişməyə ehtiyac yoxdur
     (out / "manifest.json").write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
     return m
 
 
-def zip_browser(browser: str, version: str) -> Path:
+def zip_browser(browser: str) -> Path:
     src = DIST / browser
     zdir = DIST / "zips"
     zdir.mkdir(exist_ok=True)
-    zpath = zdir / f"zai-autoresend-{browser}-{version}.zip"
+    zpath = zdir / f"better-z.ai-{browser}.zip"
     if zpath.exists():
         zpath.unlink()
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
@@ -138,13 +132,12 @@ def main() -> None:
     mf = build_browser("firefox")
     assert mc["version"] == mf["version"], "manifest versiyaları fərqlənir!"
     assert mc["name"] == mf["name"], "manifest adları fərqlənir!"
-    version = mc["version"]
     mode = "TEST" if TEST else "PROD"
-    print(f"build {mode} v{version} → dist/chrome, dist/firefox")
+    print(f"build {mode} → dist/chrome, dist/firefox")
 
     if not TEST:
         for b in ["chrome", "firefox"]:
-            zp = zip_browser(b, version)
+            zp = zip_browser(b)
             sha = hashlib.sha256(zp.read_bytes()).hexdigest()
             print(f"  {zp.name}  {zp.stat().st_size} bayt  sha256={sha[:16]}…")
         zdir = DIST / "zips"
@@ -153,8 +146,8 @@ def main() -> None:
             sha = hashlib.sha256(p.read_bytes()).hexdigest()
             lines.append(f"{sha}  {p.name}")
         (zdir / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-        fx = zdir / f"zai-autoresend-firefox-{version}.zip"
-        xpi = zdir / f"zai-autoresend-firefox-{version}.xpi"
+        fx = zdir / "better-z.ai-firefox.zip"
+        xpi = zdir / "better-z.ai-firefox.xpi"
         shutil.copy2(fx, xpi)
         print(f"  {xpi.name} (surət)")
 
