@@ -1,45 +1,45 @@
 /*
- * better z.ai — Popap bağlayıcı.
+ * better z.ai — popup closer.
  *
- * Vəzifəsi: z.ai-in öz-özünə açdığı axsayan popapları ("Currently in peak
- * hours" və s.) avtomatik bağlamaq. Açar-söz siyahısı istifadəçi tərəfindən
- * ayarlar səhifəsində redaktə olunur.
+ * Purpose: automatically close the nag popups z.ai opens on its own
+ * ("Currently in peak hours" etc.). The keyword list is edited by the
+ * user on the settings page.
  *
- * TƏHLÜKƏSİZLİK QAYDALARI:
- *   1. Parol (input[type=password]) olan dialoq HEÇ VAXT bağlanmır.
- *   2. Yalnız açar-sözlərdən birinə uyğun mətnli pəncərələrə toxunulur.
- *   3. Mətn daxiletmə sahəsi olan (və "bağla" düyməsi olmayan) pəncərələr
- *      toxunulmaz qalır — istifadəçi məlumat itirməsin.
- *   4. Dövrə qoruyucusu: eyni element 30 saniyədə 3 dəfədən çox açılırsa
- *      müdaxilə dayandırılır (saytla müharibə etmirik).
+ * SAFETY RULES:
+ *   1. A dialog with a password field (input[type=password]) is NEVER closed.
+ *   2. Only windows whose text matches one of the keywords are touched.
+ *   3. Windows with a text input (and no close button) stay
+ *      untouched — the user must not lose data.
+ *   4. Loop guard: if the same element opens more than 3 times in 30 s
+ *      intervention stops (we don't fight the site).
  *
- * ISOLATED world content script kimi işləyir; Node vm-də yalnız saf qərar
- * hissəsi (PC.decide) yüklənir (unit testlər üçün).
+ * Runs as an ISOLATED world content script; in Node vm only the pure
+ * decision part (PC.decide) is loaded (for unit tests).
  */
 (function (root) {
   'use strict';
   var PC = root.__zaiExtPopupCloser = root.__zaiExtPopupCloser || {};
 
   PC.WINDOWS = {
-    scan: 900,          // təhlükəsizlik ehtiyat skan intervalı
-    step: 220,          // bağlama kaskadının addım gözləməsi
-    maxCloses: 3,       // eyni element üçün maksimum bağlama cəhdi
-    closeWindow: 30000, // dövrə qoruyucusu pəncərəsi
-    textCap: 600        // oxunan mətn limiti
+    scan: 900,          // safety-margin scan interval
+    step: 220,          // close-cascade step wait
+    maxCloses: 3,       // max close attempts per element
+    closeWindow: 30000, // loop-guard window
+    textCap: 600        // read-text limit
   };
 
-  /* "bağla / sonra / keç" mənalı düymə mətnləri */
-  PC.DISMISS_RE = /^(close|bağla|×|✕|x|later|sonra|not now|maybe later|skip|keç|dismiss|got it|anladım|tamam)$/i;
+  /* button texts meaning "close / later / skip" */
+  PC.DISMISS_RE = /^(close|×|✕|x|later|not now|maybe later|skip|dismiss|got it)$/i;
 
   /*
-   * SAF QƏRAR FUNKSIYASI (unit-test olunur).
+   * PURE DECISION FUNCTION (unit-tested).
    * st: { enabled, text, patterns[], hasPassword, hasTextInput, hasDismissBtn }
    * → 'close' | 'keep'
    */
   PC.decide = function (st) {
     st = st || {};
     if (!st.enabled) return 'keep';
-    if (st.hasPassword) return 'keep';          // giriş/təsdiq formu — heç vaxt
+    if (st.hasPassword) return 'keep';          // login/confirmation form — never
     var t = String(st.text || '');
     if (!t) return 'keep';
     var hit = false;
@@ -48,18 +48,18 @@
       var p = String(pats[i] || '').trim();
       if (p && t.toLowerCase().indexOf(p.toLowerCase()) >= 0) { hit = true; break; }
     }
-    if (!hit) return 'keep';                    // açar söz yoxdur → bizim işimiz deyil
+    if (!hit) return 'keep';                    // no keyword hit → not our business
     if (st.hasDismissBtn) return 'close';
-    if (!st.hasTextInput) return 'close';       // məlumat pəncərəsi → Escape ilə bağla
-    return 'keep';                              // input var, düymə yoxdur → toxunma
+    if (!st.hasTextInput) return 'close';       // info window → close via Escape
+    return 'keep';                              // has input, no button → hands off
   };
 
-  /* ============ DOM hissəsi (yalnız brauzerdə) ============ */
+  /* ============ DOM part (browser only) ============ */
   if (typeof document === 'undefined' || !document) return;
 
   var hooks = null;        // { getSettings, log, onBlocked }
   var started = false;
-  var seen = null;         // Map: bu skanda görünən elementlər
+  var seen = null;         // Map: elements seen in this scan
   var closeStats = null;   // WeakMap: element -> { n, first }
   var scanTimer = null;
 
@@ -69,7 +69,7 @@
     '[class*="popup"]', '[class*="Popup"]', '[class*="overlay"]', '[class*="Overlay"]'
   ].join(',');
 
-  /* mətn daxiletmə sahələri (düymə/bayraq tipləri xaric) */
+  /* text input areas (button/checkbox types excluded) */
   var INPUT_SEL = 'input:not([type=hidden]):not([type=checkbox]):not([type=radio])' +
     ':not([type=file]):not([type=button]):not([type=submit]):not([type=image]):not([type=password]), textarea, select';
 
@@ -109,7 +109,7 @@
         var tx = (b.innerText || b.textContent || '').trim();
         var cls = (typeof b.className === 'string' ? b.className : '');
         if (PC.DISMISS_RE.test(aria) || PC.DISMISS_RE.test(tx) ||
-            /close|bağla|later|sonra|skip|keç/i.test(cls)) {
+            /close|later|skip|dismiss/i.test(cls)) {
           if (b.offsetParent !== null || visibleEl(b)) return b;
         }
       }
@@ -137,7 +137,7 @@
   function closePopup(el, btn, step) {
     try {
       if (!el || !el.isConnected) return;
-      if (!visibleEl(el)) return; // artıq bağlıdır
+      if (!visibleEl(el)) return; // already closed
       if (step === 0) {
         var now = Date.now();
         var st = closeStats.get(el);
@@ -145,7 +145,7 @@
         st.n += 1;
         closeStats.set(el, st);
         if (st.n > PC.WINDOWS.maxCloses) {
-          if (hooks && hooks.log) hooks.log('popap təkrar açılır — müdaxilə dayandırıldı');
+          if (hooks && hooks.log) hooks.log('popup reopening — intervention stopped');
           return;
         }
         if (hooks && hooks.onBlocked) { try { hooks.onBlocked(); } catch (e) { /* ignore */ } }
@@ -157,7 +157,7 @@
         el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
       } else {
         forceHide(el);
-        if (hooks && hooks.log) hooks.log('popap məcburi gizlədildi');
+        if (hooks && hooks.log) hooks.log('popup force-hidden');
         return;
       }
       setTimeout(function () { if (visibleEl(el)) closePopup(el, btn, step + 1); }, PC.WINDOWS.step);
@@ -172,7 +172,7 @@
       if (!hooks || !document.body) return;
       var s = hooks.getSettings();
       if (!s || !s.closePopups) {
-        seen = new Map(); // parametr söndürüldü → yandıqda təzədən işləsin
+        seen = new Map(); // setting off → start fresh when re-enabled
         return;
       }
       var els = document.querySelectorAll(SEL);
@@ -202,7 +202,7 @@
         });
         if (verdict === 'close') {
           if (hooks && hooks.log) {
-            hooks.log('popap bağlandı (' + String(text).replace(/\s+/g, ' ').trim().slice(0, 40) + ')');
+            hooks.log('popup closed (' + String(text).replace(/\s+/g, ' ').trim().slice(0, 40) + ')');
           }
           closePopup(el, btn, 0);
         }

@@ -1,4 +1,4 @@
-/* better z.ai — ayarlar səhifəsi (təmiz, işıqlı/qaranlıq uyğunlaşan dizayn) */
+/* better z.ai — settings page (clean, light/dark adaptive design) */
 
 :root {
   color-scheme: light dark;
@@ -53,7 +53,7 @@ body {
 }
 .wrap { max-width: 760px; margin: 0 auto; }
 
-/* ---------- başlıq ---------- */
+/* ---------- header ---------- */
 
 header { display: flex; gap: 16px; align-items: center; margin-bottom: 22px; }
 .mark {
@@ -76,7 +76,7 @@ h1 span {
 }
 p.sub { color: var(--fg-3); font-size: 12.5px; margin: 0; }
 
-/* ---------- kartlar ---------- */
+/* ---------- cards ---------- */
 
 .card {
   background: var(--card);
@@ -102,7 +102,7 @@ p.sub { color: var(--fg-3); font-size: 12.5px; margin: 0; }
   flex: 0 0 auto;
 }
 
-/* ---------- sətir: mətn + switch ---------- */
+/* ---------- row: text + switch ---------- */
 
 .row {
   display: flex;
@@ -156,7 +156,7 @@ p.sub { color: var(--fg-3); font-size: 12.5px; margin: 0; }
 .sw input:checked + .sw-t .sw-k { transform: translateX(17px); }
 .sw input:focus-visible + .sw-t { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ---------- kompakt switch toru ---------- */
+/* ---------- compact switch grid ---------- */
 
 .switch-grid {
   display: grid;
@@ -210,7 +210,7 @@ p.sub { color: var(--fg-3); font-size: 12.5px; margin: 0; }
 }
 .arealbl textarea { resize: vertical; font: 12.5px/1.6 ui-monospace, Menlo, Consolas, monospace; }
 
-/* ---------- qeydlər ---------- */
+/* ---------- notes ---------- */
 
 p.note {
   color: var(--fg-2);
@@ -223,7 +223,7 @@ p.note {
   line-height: 1.55;
 }
 
-/* ---------- snippet redaktoru ---------- */
+/* ---------- snippet editor ---------- */
 
 .snips { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
 .snip-row {
@@ -260,7 +260,7 @@ button.add {
 }
 button.add:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 
-/* ---------- klaviatura qısayolları ---------- */
+/* ---------- keyboard shortcuts ---------- */
 
 .keys {
   list-style: none;
@@ -282,7 +282,7 @@ button.add:hover { background: color-mix(in srgb, var(--accent) 20%, transparent
   color: var(--fg);
 }
 
-/* ---------- düymələr ---------- */
+/* ---------- buttons ---------- */
 
 .actions { display: flex; align-items: center; gap: 12px; margin: 18px 2px; flex-wrap: wrap; }
 
@@ -315,7 +315,7 @@ label.ghost.file input[type=file] { display: none; }
 #btnReset:hover { background: color-mix(in srgb, var(--err) 20%, transparent); }
 #savedNote { color: var(--ok); font-size: 12.5px; opacity: 0; transition: opacity .3s; }
 
-/* ---------- alt hissə ---------- */
+/* ---------- footer ---------- */
 
 footer {
   color: var(--fg-3);

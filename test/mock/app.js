@@ -1,10 +1,10 @@
 /*
- * Mock z.ai chat tətbiqi (test səhifəsi).
- * REAL protokulu təkrarlayır: /api/v2/chat/completions + X-Signature,
+ * Mock z.ai chat app (test page).
+ * Replicates the REAL protocol: /api/v2/chat/completions + X-Signature,
  * attachment upload (/api/v1/storage/pfs/files/upload), persist (POST chats/{id}).
  *
- * Xəta halında (system is busy / şəbəkə) DƏQİQ z.ai kimi davranır:
- *   qırmızı xəta sətri + composer təmizlənir + attachment-lar SİLİNİR.
+ * On errors (system is busy / network) it behaves EXACTLY like z.ai:
+ *   red error row + composer cleared + attachments DELETED.
  */
 'use strict';
 
@@ -22,10 +22,10 @@
   let turnCount = 0;
   let sending = false;
 
-  /* ---------- preview modalı (z.ai kimi) ----------
-     window.__mockAutoPreview         → uğurlu cavabdan sonra ÖZ-ÖZÜNƏ açılır
-     window.__mockAutoPreviewOnAttach → fayl əlavə ediləndə ÖZ-ÖZÜNƏ açılır
-     window.__mockPreview             → test üçün vəziyyət */
+  /* ---------- preview modal (like z.ai) ----------
+     window.__mockAutoPreview         -> opens on its own after a successful response
+     window.__mockAutoPreviewOnAttach -> opens on its own when a file is added
+     window.__mockPreview             -> state for tests */
   const previewModal = $('previewModal');
   window.__mockPreview = { opens: 0, open: false, openedBy: null, closedBy: null };
   function openPreview(by) {
@@ -46,9 +46,9 @@
     if (e.key === 'Escape' && previewModal.classList.contains('open')) closePreview('escape');
   });
 
-  /* ---------- peak hours popapı + parol dialoqu ----------
-     window.__mockPeakOpen() → saytın özü kimi (kliksiz) popapı açır
-     window.__modalVisible(id) → görünənliyi yoxlayır (forceHide daxil) */
+  /* ---------- peak hours popup + password dialog ----------
+     window.__mockPeakOpen() -> opens the popup like the site itself (no click)
+     window.__modalVisible(id) -> checks visibility (incl. forceHide) */
   const peakModal = $('peakModal');
   const authModal = $('authModal');
   window.__mockPeak = { opens: 0, open: false, closedBy: null };
@@ -118,8 +118,8 @@
     attachments.forEach((a) => {
       const c = document.createElement('span');
       c.className = 'chip';
-      c.textContent = '📎 ' + a.name + (a.kind === 'image' ? ' (şəkil)' : ' (fayl)');
-      c.title = 'Preview aç (istifadəçi kliki)';
+      c.textContent = '📎 ' + a.name + (a.kind === 'image' ? ' (image)' : ' (file)');
+      c.title = 'Open preview (user click)';
       c.addEventListener('click', () => openPreview('user'));
       chipsEl.appendChild(c);
     });
@@ -139,12 +139,12 @@
     Object.values(msgs).forEach((m) => {
       if (!m) return;
       if (m.role === 'assistant') {
-        addRow('msg-assistant', typeof m.content === 'string' ? m.content : '(massiv cavab)');
+        addRow('msg-assistant', typeof m.content === 'string' ? m.content : '(array response)');
       } else {
         let txt = '';
         if (typeof m.content === 'string') txt = m.content;
         else if (Array.isArray(m.content)) {
-          txt = m.content.map((p) => p.type === 'text' ? p.text : `[${p.type === 'image_url' ? 'şəkil' : 'əlavə'}]`).join(' ');
+          txt = m.content.map((p) => p.type === 'text' ? p.text : `[${p.type === 'image_url' ? 'image' : 'attachment'}]`).join(' ');
         }
         addRow('msg-user', txt);
       }
@@ -160,7 +160,7 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* ---------- attachment yükləmə ---------- */
+  /* ---------- attachment upload ---------- */
   fileInput.addEventListener('change', async () => {
     for (const f of (fileInput.files || [])) {
       const fd = new FormData();
@@ -208,7 +208,7 @@
       prevId = mid;
     });
     const chat = {
-      id: CHAT_ID, title: 'Mock söhbət', models: ['x-preview-l'], params: {},
+      id: CHAT_ID, title: 'Mock chat', models: ['x-preview-l'], params: {},
       history: { messages: entries, currentId: assistId },
       tags: [], flags: ['general_agent'], mcp_servers: [],
       enable_thinking: true, reasoning_effort: 'high', auto_web_search: false,
@@ -224,7 +224,7 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* THE PAIN: xətada composer + attachment-lar təmizlənir (z.ai kimi) */
+  /* THE PAIN: on error the composer + attachments are cleared (like z.ai) */
   function failSend(msg) {
     addRow('err', msg);
     composerEl.value = '';
@@ -232,7 +232,7 @@
     renderChips();
   }
 
-  /* ---------- göndər ---------- */
+  /* ---------- send ---------- */
   async function send() {
     const prompt = composerEl.value.trim();
     if (sending) return;
@@ -372,7 +372,7 @@
         return;
       }
 
-      // uğur → persist
+      // success -> persist
       appHistory.push({ role: 'assistant', content: text });
       turnCount += 1;
       $('turnCount').textContent = String(turnCount);
@@ -380,7 +380,7 @@
       attachments = [];
       renderChips();
       await persistChat(assistId, userMsgId, text);
-      // z.ai kimi: generasiya bitəndə preview ÖZ-ÖZÜNƏ açılır
+      // like z.ai: preview opens on its own when generation finishes
       if (window.__mockAutoPreview) {
         setTimeout(() => { if (window.__mockAutoPreview) openPreview('auto'); }, 120);
       }

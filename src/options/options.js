@@ -1,6 +1,6 @@
-/* better z.ai — Ayarlar səhifəsi (options.js).
-   Dəyişikliklər avtomatik yadda saxlanılır (debounce) və mövcud parametrlərlə
-   BİRLƏŞDİRİLİR — formada olmayan açarlar (jitter, retryOnHttpError, …) itmir. */
+/* better z.ai — settings page (options.js).
+   Changes are saved automatically (debounced) and MERGED with existing
+   settings — keys not present in the form (jitter, retryOnHttpError, …) survive. */
 (function () {
   'use strict';
 
@@ -39,9 +39,9 @@
     var row = document.createElement('div');
     row.className = 'snip-row';
     row.innerHTML =
-      '<input class="snip-name" type="text" placeholder="Ad (məs: Qısa cavab)" maxlength="60">' +
-      '<textarea class="snip-text" rows="2" placeholder="Mətn — kompozitora yerləşəcək"></textarea>' +
-      '<button class="snip-del" type="button" title="Sil">✕</button>';
+      '<input class="snip-name" type="text" placeholder="Name (e.g. Short answer)" maxlength="60">' +
+      '<textarea class="snip-text" rows="2" placeholder="Text — inserted into the composer"></textarea>' +
+      '<button class="snip-del" type="button" title="Delete">✕</button>';
     row.querySelector('.snip-name').value = name || '';
     row.querySelector('.snip-text').value = text || '';
     row.querySelector('.snip-del').addEventListener('click', function () {
@@ -134,7 +134,7 @@
     };
   }
 
-  /* formada olmayan açarları qorumaq üçün mövcud settings ilə birləşdiririk */
+  /* merge with existing settings to preserve keys not present in the form */
   function save() {
     chrome.storage.local.get(['settings'], function (got) {
       var cur = (got && got.settings) || {};
@@ -162,7 +162,7 @@
       el.addEventListener('input', onChange);
     });
 
-  /* snippet sətirləri — delegasiya ilə */
+  /* snippet rows — via delegation */
   els.snipList.addEventListener('input', onChange);
   els.snipList.addEventListener('change', onChange);
 
@@ -172,7 +172,7 @@
     onChange();
   });
 
-  /* ---------- ayarların ixracı / idxalı ---------- */
+  /* ---------- settings export / import ---------- */
 
   els.btnExportCfg.addEventListener('click', function () {
     chrome.storage.local.get(['settings'], function (got) {
@@ -182,7 +182,7 @@
         { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'better-zai-ayarlar-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.download = 'better-zai-settings-' + new Date().toISOString().slice(0, 10) + '.json';
       document.body.appendChild(a);
       a.click();
       setTimeout(function () {
@@ -208,11 +208,11 @@
           fillForm(merged);
           suppressSave = false;
           flashSaved();
-          els.impNote.textContent = '✓ İdxal olundu';
+          els.impNote.textContent = '✓ Imported';
           setTimeout(function () { els.impNote.textContent = ''; }, 2000);
         });
       } catch (e) {
-        els.impNote.textContent = '✘ Fayl oxunmadı — düzgün JSON deyil';
+        els.impNote.textContent = '✘ Could not read file — not valid JSON';
         setTimeout(function () { els.impNote.textContent = ''; }, 2500);
       }
     };
@@ -220,7 +220,7 @@
     els.fileImportCfg.value = '';
   });
 
-  /* ---------- diaqnostika (xəta hesabatı üçün) ---------- */
+  /* ---------- diagnostics (for bug reports) ---------- */
 
   els.btnDiag.addEventListener('click', function () {
     chrome.storage.local.get(['settings', 'stats', 'records', 'log', 'paused', 'lastExport', 'lastBackup'], function (got) {
@@ -245,7 +245,7 @@
       var blob = new Blob([JSON.stringify(diag, null, 2)], { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'better-zai-diaqnostika-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
+      a.download = 'better-zai-diagnostics-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
       document.body.appendChild(a);
       a.click();
       setTimeout(function () {
@@ -254,7 +254,7 @@
     });
   });
 
-  /* ---------- reset + başlanğıc ---------- */
+  /* ---------- reset + init ---------- */
 
   els.btnReset.addEventListener('click', function () {
     suppressSave = true;

@@ -1,4 +1,4 @@
-/* Debug: kanal (postMessage), PONG, storage vəziyyəti, popup görüntüsü. */
+/* Debug: channel (postMessage), PONG, storage state, popup view. */
 import { chromium } from 'playwright';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -37,29 +37,29 @@ const pong = await page.evaluate(() => new Promise((resolve) => {
 }));
 console.log('PONG =', JSON.stringify(pong));
 
-// 2) mesaj göndər (busy) — attachment ilə
+// 2) send a message (busy) — with an attachment
 await fetch(BASE + '/_ctl', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ script: ['busy', 'sse_ok'], resetPersist: true }) });
 await fetch(BASE + '/_log', { method: 'DELETE' });
 await page.setInputFiles('#fileInput', { name: 'd.png', mimeType: 'image/png', buffer: PNG });
 await page.waitForSelector('#chips .chip', { timeout: 6000 });
-await page.fill('#composer', 'debug mesajı');
+await page.fill('#composer', 'debug message');
 await page.click('#send');
 await page.waitForSelector('#messages .err', { timeout: 8000 });
-console.log('[app] busy xətası göründü');
+console.log('[app] busy error shown');
 await page.waitForTimeout(5000);
 
 // 3) server log
 const log = await (await fetch(BASE + '/_log')).json();
 console.log('server requests =', log.requests.length, JSON.stringify(log.requests.map(r => ({ sigOk: r.sigOk, why: r.why, mode: r.mode }))));
 
-// 4) pill vəziyyəti
+// 4) pill state
 const pill = await page.evaluate(() => {
   const el = document.querySelector('.zai-ext-pill');
   return el ? { display: el.style.display, state: el.dataset.state, text: el.textContent } : null;
 });
 console.log('pill =', JSON.stringify(pill));
 
-// 5) extension id → popup aç, GET_STATE nəticəsini gör
+// 5) extension id -> open the popup, inspect the GET_STATE result
 const sws = ctx.serviceWorkers();
 console.log('serviceWorkers =', sws.map((s) => s.url()));
 if (sws.length) {

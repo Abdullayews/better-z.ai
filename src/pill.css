@@ -1,10 +1,10 @@
-/* better z.ai — pill (vəziyyət kartı) + fab + snippet menyu + draft banner + söz sayğacı.
-   Manifest-dən yüklənir → səhifənin CSP-si tətbiq olunmur. */
+/* better z.ai — pill (status card) + fab + snippet menu + draft banner + word counter.
+   Loaded from the manifest → the page's CSP does not apply. */
 
 .zai-ext-pill {
   position: fixed;
   right: 16px;
-  bottom: 170px; /* kompozitor (göndər düyməsi) zonasını örtməmək üçün yuxarıda */
+  bottom: 170px; /* kept up high to avoid covering the composer (send button) area */
   z-index: 2147483000;
   display: none;
   align-items: center;
@@ -64,7 +64,7 @@
   50% { opacity: 0.25; }
 }
 
-/* ============ ⚡ snippet düyməsi ============ */
+/* ============ ⚡ snippet button ============ */
 
 .zai-ext-fab {
   position: fixed;
@@ -92,7 +92,7 @@
 
 .zai-ext-fab:hover { background: rgba(34, 39, 52, 0.92); transform: scale(1.06); }
 
-/* ============ snippet menyusu ============ */
+/* ============ snippet menu ============ */
 
 .zai-ext-snip {
   position: fixed;
@@ -140,7 +140,7 @@
 .zai-ext-snip .zai-ext-snip-item b { font-size: 12px; }
 .zai-ext-snip .zai-ext-snip-item span { color: #9aa3b5; font-size: 11px; }
 
-/* ============ qaralama bərpa bannerı ============ */
+/* ============ draft restore banner ============ */
 
 .zai-ext-draft {
   position: fixed;
@@ -191,11 +191,11 @@
   padding: 4px 8px;
 }
 
-/* ============ söz sayğacı ============ */
+/* ============ word counter ============ */
 
 .zai-ext-counter {
   position: fixed;
-  right: 59px;          /* ⚡ fab düyməsinin solunda */
+  right: 59px;          /* to the left of the ⚡ fab button */
   bottom: 135px;
   z-index: 2147482999;
   padding: 4px 10px;
@@ -206,6 +206,6 @@
   color: #b9c0cd;
   font: 11px/1.4 system-ui, -apple-system, sans-serif;
   border: 1px solid rgba(255, 255, 255, 0.09);
-  pointer-events: none; /* klikləri əngəlləmir */
+  pointer-events: none; /* does not block clicks */
   user-select: none;
 }
