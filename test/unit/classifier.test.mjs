@@ -44,9 +44,24 @@ test('classifyStream — global_limit (system is busy) → retry', () => {
   assert.equal(r.reason, 'busy');
 });
 
-test('classifyStream — captcha → fatal', () => {
+test('classifyStream — captcha → fast retry (1 s)', () => {
   const r = C.classifyStream({ ended: true, sawContent: false, gotDone: true, errText: 'FRONTEND_CAPTCHA_REQUIRED — captcha' });
-  assert.equal(r.outcome, 'fatal');
+  assert.equal(r.outcome, 'retry');
+  assert.equal(r.reason, 'captcha');
+  assert.equal(r.fastDelayMs, 1000);
+});
+
+test('classifyHttpError — captcha body (403) → fast retry, not fatal', () => {
+  const r = C.classifyHttpError(403, '{"error":{"code":"FRONTEND_CAPTCHA_REQUIRED","detail":"captcha required"}}', false);
+  assert.equal(r.outcome, 'retry');
+  assert.equal(r.reason, 'captcha');
+  assert.equal(r.fastDelayMs, 1000);
+});
+
+test('classifyBodyText — captcha → fast retry', () => {
+  const r = C.classifyBodyText('{"error":{"code":"FRONTEND_CAPTCHA_REQUIRED","detail":"captcha required"}}');
+  assert.equal(r.outcome, 'retry');
+  assert.equal(r.reason, 'captcha');
 });
 
 test('classifyStream — ended without [DONE] → retry (no_done)', () => {

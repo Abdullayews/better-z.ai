@@ -166,6 +166,13 @@ async function handleCompletion(req, res) {
     res.end();
     return;
   }
+  if (mode === 'captcha') {
+    // z.ai behavior: FRONTEND_CAPTCHA_REQUIRED in the stream — the extension
+    // must fast-retry it (1 s) and keep the attachments in the replayed body.
+    sse(res, { data: { error: { code: 'FRONTEND_CAPTCHA_REQUIRED', detail: 'captcha required' } } });
+    res.end();
+    return;
+  }
   if (mode === 'netkill') {
     sse(res, { data: { message: { delta_content: 'partial response received — ' } } });
     setTimeout(() => { try { res.destroy(); } catch (e) { } }, 30);
