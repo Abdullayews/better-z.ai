@@ -1,27 +1,41 @@
-# Z.ai Auto-Resend 🔁
+# better z.ai
 
-**chat.z.ai üçün Chrome və Firefox extension-ı** — *"system is busy"* və digər göndərmə
+**z.ai üçün Chrome və Firefox extension-ı** — *"system is busy"* və digər göndərmə
 xətalarında mesajınızı **attachment-larla birlikdə** avtomatik yenidən göndərir.
-
-**v1.3.0 — Sürət və nəzarət paketi:** klaviatura qısayolları (Alt+R/P/E), bütün
-söhbətlərin tam backup-ı (.md + .json), söz sayğacı, "cavab hazırdır" səsi,
-adaptiv backoff və diaqnostika ixracı.
-
-**v1.2.0 — Ağıllı köməkçi paketi:** qaralama mühafizəsi, snippet kitabxanası, söhbətin
-Markdown ixracı, "peak hours" popap bağlayıcısı, "cavab hazırdır" bildirişi, qlobal
-pauza, ardıcıl retry, dublikat qorunması və statistika.
 
 > Əsas problem: chat.z.ai-də mesaj uğursuz olanda composer təmizlənir və **attachment-lar
 > silinir** — istifadəçi hər şeyi yenidən yükləməli olur. Bu extension o sorğunun
 > **tam nüsxəsini yaxalayır** (attachment-lar body-nin içindədir) və uğursuzluğu avtomatik
 > geri çəkilmə (backoff) ilə təkrarlayır — attachment-lar heç bir vaxt itmir.
 
+Yalnız **z.ai domenində və bütün alt domenlərində** (chat.z.ai daxil) işləyir.
+
 ---
+
+## Funksiyalar
+
+| Funksiya | Nə edir |
+|---|---|
+| 🔁 Avtomatik yenidən göndərmə | "system is busy" (global_limit), 429, WAF bloku, şəbəkə kəsintisi → eksponensial backoff ilə təkrar (imza avtomatik yenilənir) |
+| 🖼️ Preview bloku | Fayl/şəkil preview-ləri öz-özünə açılmır — yalnız kliklə açılır (standart: aktiv) |
+| 📝 Qaralama mühafizəsi | Yazdığınız mətn avtomatik yadda saxlanılır; reload-dan sonra "Bərpa et" təklifi |
+| 🧷 Mesaj xilası | Uğursuz mesajın tam mətni bir kliklə panoya |
+| ⚡ Snippet kitabxanası | Tez-tez yazdığınız şablonlar — kompozitor yanında ⚡ düyməsi, ayarlarda CRUD |
+| ⤓ Söhbətin ixracı | Cari söhbət Markdown (.md) kimi |
+| ⤓⤓ Tam backup | BÜTÜN söhbətlər bir klikdə: birləşdirilmiş .md + strukturlu .json |
+| 🔔 "Cavab hazırdır" | Tab arxa planda olanda bildiriş (istəyə bağlı səs) |
+| 🚪 Popap bağlayıcı | "Currently in peak hours" kimi popaplar avtomatik bağlanılır (parol dialoqlarına toxunulmur) |
+| ⏸ Qlobal pauza | Bütün avtomatik retry-ləri dayandır / davam etdir |
+| 🎯 Ardıcıl retry | Eyni anda yalnız bir mesaj yenidən göndərilir, sıra pozulmur |
+| 🛡️ Dublikat qorunması | Retry-dan əvvəl server tarixçəsi yoxlanılır — mesaj onsuz da çatıbsa ikinci dəfə getmir |
+| ⌨️ Qısayollar | **Alt+R** indi cəhd et · **Alt+P** pauza · **Alt+E** ixrac |
+| 🔤 Söz sayğacı | Kompozitor yanında canlı "N söz · M simvol" |
+| ⏱️ Adaptiv backoff | Ardıcıl "busy"-də gözləmələr tədricən uzanır (maks ×3), uğurda sıfırlanır |
 
 ## Necə işləyir
 
 ```
-[chat.z.ai səhifəsi]                         [extension]
+[z.ai səhifəsi]                              [extension]
       │  POST /api/v2/chat/completions  ──►  yaxalama (fetch wrapper, MAIN world)
       │  (body: mesaj + attachment-lar)       │
       │                                       ├─ SSE axını təhlil olunur:
@@ -33,14 +47,13 @@ pauza, ardıcıl retry, dublikat qorunması və statistika.
                                               │
                                               ├─ RETRY: eyni body + eyni başlıqlar;
                                               │   imza 4 dəq köhnəlibsə → X-Signature
-                                              │   YENİDƏN hesablanır (HMAC-SHA256, LEGACY_SPEC §5)
+                                              │   YENİDƏN hesablanır (HMAC-SHA256)
                                               │
-                                              └─ uğurda: POST /api/v1/chats/{id} (persist, §7 forması)
+                                              └─ uğurda: POST /api/v1/chats/{id} (persist)
                                                   + səhifə avtomatik yenilənir → mesajınız görünür
 ```
 
-Texniki detallar (bütün bunlar real web tətbiqindən geri mühəndisliklə alınmış
-LEGACY_SPEC (zai_protokol_spec.md — ZaiMobile layihəsindən) əsasadır):
+Texniki detallar (real web tətbiqindən geri mühəndisliklə alınmış spec əsasındadır):
 
 | Hissə | İzah |
 |---|---|
@@ -48,7 +61,7 @@ LEGACY_SPEC (zai_protokol_spec.md — ZaiMobile layihəsindən) əsasadır):
 | Attachment-lar | body-də `messages[-1].content` massivi: `image_url` / `file_url` / `video_url` |
 | "System is busy" | SSE daxilində `data.error` (`global_limit` kodu) |
 | İmza pəncərəsi | 5 dəqiqə (`ts/300000`); extension 4 dəqiqədən sonra yenidən imzalayır |
-| Persist | uğurlu retry-dan sonra `POST /api/v1/chats/{id}` (§7: msg-0..N + real id-lər) |
+| Persist | uğurlu retry-dan sonra `POST /api/v1/chats/{id}` (msg-0..N + real id-lər) |
 
 ## Quraşdırma
 
@@ -64,38 +77,31 @@ LEGACY_SPEC (zai_protokol_spec.md — ZaiMobile layihəsindən) əsasadır):
 ### Yoxlama (30 saniyə)
 1. [chat.z.ai](https://chat.z.ai) açın, daxil olun.
 2. Konsolda (F12): `window.__zaiExtInject` → `true`
-3. Bir attachment əlavə edib mesaj göndərin → ikonkaya klik → **Şəbəkə jurnalı**nda
-   `completion → 200 (N əlavə)` görünməlidir.
+3. Bir attachment əlavə edib mesaj göndərin → ikonkaya klik → vəziyyət kartında
+   retry gedişatı görünməlidir.
 
-## Parametrlər (popup → Parametrlər)
+## Ayarlar
 
-| Parametr | Standart | İzah |
-|---|---|---|
-| Maks. cəhd | 6 | tükəndikdə bildiriş + "İndi cəhd et" düyməsi qalır |
-| İlkin gecikmə | 5000 ms | eksponensial: 5s → 10s → 20s → … (maks 120s) |
-| İmza yeniləməsi | ✅ | köhnə imzaları (X-Signature) yenidən hesablayır |
-| Persist | ✅ | uğurdan sonra tarixçəni serverə yazır |
-| Avto-yenilə | ✅ | uğurdan sonra səhifəni yeniləyir (başqa gözləmə varsa gözləyir) |
-| DOM ehtiyat rejimi | ❌ | yalnız SSE birmənalı olanda + səhifədə "busy" mətni görünəndə retry |
-| 🖼️ Preview bloku | ✅ | avtomatik açılan preview-lər bağlanılır, yalnız kliklə açılır (v1.1.0) |
-| 📝 Qaralama mühafizəsi | ✅ | kompozitor mətni yadda saxlanılır, reload-dan sonra bərpa (v1.2.0) |
-| ⚡ Snippetlər | ✅ | tez istifadə şablonları — CRUD ayarlar səhifəsində (v1.2.0) |
-| 🔔 Cavab hazırdır | ✅ | tab arxa planda olanda bildiriş (v1.2.0) |
-| 🚪 Popap bağlayıcı | ✅ | "peak hours" tipli popaplar bağlanılır — açar sözlər redaktə olunur (v1.2.0) |
-| 🎯 Ardıcıl retry | ✅ | eyni anda yalnız bir mesaj yenidən göndərilir (v1.2.0) |
-| 🛡️ Dublikat qorunması | ✅ | retry-dan əvvəl server tarixçəsi yoxlanılır (v1.2.0) |
-| ⌨️ Qısayollar | ✅ | **Alt+R** indi cəhd et · **Alt+P** pauza · **Alt+E** ixrac (v1.3.0) |
-| 🔤 Söz sayğacı | ✅ | kompozitor yanında canlı "N söz · M simvol" (v1.3.0) |
-| 🔊 "Cavab hazırdır" səsi | ❌ | bildirişlə yanaşı yumşaq zəng (v1.3.0) |
-| ⏱️ Adaptiv backoff | ✅ | ardıcıl busy-də gözləmələr uzanır (maks ×3) (v1.3.0) |
-| ⤓⤓ Tam backup | — | popup-dan: bütün söhbətlər .md + .json, maks 50 (dəyişilə bilər) (v1.3.0) |
+İkonka → **Bütün ayarlar**: maksimum cəhdlər (6), ilkin gecikmə (5s), backoff amili,
+imza yeniləmə, persist, avto-yenilə, preview bloku, qaralama, snippetlər (CRUD),
+popap açar sözləri, söz sayğacı, backup limiti, qısayollar, bildirişlər, səs,
+DOM ehtiyat rejimi + ayarların JSON ixrac/idxalı.
+
+> 📎 Mesajın attachment-larla birlikdə qorunub bərpa edilməsi **həmişə aktivdir** —
+> bu əsas funksiya söndürülə bilməz.
+
+## Məxfilik
+
+- Heç bir məlumat kənar serverə getmir: tutulan sorğular yalnız brauzerin
+  `chrome.storage.local`-ında saxlanılır.
+- Extension yalnız z.ai domenində və alt domenlərində işləyir (`*://*.z.ai/*`).
 
 ## Testlər
 
 | Suit | Nəticə | Əhatə |
 |---|---|---|
-| Unit (Node vm) | **65/65 ✔** | təsnifat, backoff + **congestion amili**, imza cross-implementation, preview prioritetləri, popap qərarları, markdown ixracı, draft köməkçiləri, **söz sayğacı** |
-| Chrome E2E (Playwright + xvfb) | **24 ssenari / 56 yoxlama ✔** | busy→retry (attachment, imza, persist, avto-reload), 429, 400 fatal, axın kəsintisi, dedup, ləğv, preview (3), ayarlar (4), qaralama (3), snippet (2), ixrac, popap (3), ardıcıl retry, dublikat (2), pauza (2), statistika, ⧉ kopyala (2), bildiriş, **söz sayğacı (3), qısayollar (6), tam backup (4)** |
+| Unit (Node vm) | **65/65 ✔** | təsnifat, backoff + adaptiv amil, imza cross-implementation, preview prioritetləri, popap qərarları, markdown ixracı, draft köməkçiləri, söz sayğacı |
+| Chrome E2E (Playwright + xvfb) | **24 ssenari / 56 yoxlama ✔** | busy→retry (attachment, imza, persist, avto-reload), 429, 400 fatal, axın kəsintisi, dedup, ləğv, preview (3), ayarlar (4), qaralama (3), snippet (2), ixrac, popap (3), ardıcıl retry, dublikat (2), pauza (2), statistika, kopyala (2), bildiriş, söz sayğacı (3), qısayollar (6), tam backup (4) |
 | Firefox E2E (Marionette) | **10 yoxlama ✔** | inject (page world), busy→retry, imza, persist, avto-reload, preview (2), popap bağlayıcı, qaralama bərpası |
 | addons-linter | **0 error / 0 warning / 0 notice** | AMO qaydalarına uyğun |
 
@@ -104,15 +110,11 @@ Node crypto implementasiyası ilə, `global_limit` SSE xətası, multipart uploa
 
 ## Məhdudiyyətlər / qeydlər
 
-- İmza alqoritmi `LEGACY_SPEC §5`-dən götürülüb (prod-fe-1.1.123 web tətbiqindən).
-  Car bundle-da `X-Signature`, `&signature_timestamp=`, `global_limit` təsdiqləndi.
-  İmza **açarı** dəyişsə, 4 dəqiqədən uzun retry-lər imza xətası verər → FATAL
-  bildiriş (əvvəlki 4 dəqiqəlik replay hələ də işləyir).
-- Completion gəzsə WS nəqliyyatına keçsə, capture düşə bilər → popup-da
-  **Şəbəkə jurnalı** baxın (`WS açıldı:` sətirləri görünür).
+- İmza alqoritmi real web tətbiqindən götürülüb. İmza **açarı** dəyişsə, 4 dəqiqədən
+  uzun retry-lər imza xətası verər → FATAL bildiriş (əvvəlki 4 dəqiqəlik replay hələ də işləyir).
+- Completion gəlsə WS nəqliyyatına keçsə, capture düşə bilər.
 - Captcha / sessiya (401) xətalarına avtomatik retry YOXDUR — yalnız bildiriş.
-- Heç bir məlumat kənar serverə getmir: tutulan sorğular yalnız brauzerin
-  `chrome.storage.local`-ında saxlanılır (səhifə bağlı olanda silinə bilər).
+- z.ai DOM dəyişsə, DOM-a bağlı köməkçilər (preview/popap/qaralama) yenilənməli ola bilər.
 
 ## Build
 
@@ -130,19 +132,20 @@ Layihə strukturu:
 ```
 src/
   core/classifier.js   — xəta təsnifatı (hər world + Node vm)
-  core/backoff.js      — eksponensial gecikmə
+  core/backoff.js      — eksponensial + adaptiv gecikmə
   core/sign.js         — X-Signature alqoritmi (HMAC-SHA256 ×2)
-  core/preview.js      — PREVIEW GUARD: avto-açılışın bloklanması (v1.1.0)
-  core/popupcloser.js  — POPAP BAĞLAYICI: "peak hours" tipli popaplar (v1.2.0)
-  core/drafts.js       — QARALAMA köməkçiləri (v1.2.0)
-  core/mdexport.js     — Markdown İXRACI (v1.2.0)
-  inject.js            — MAIN world: fetch/XHR yaxalama + SSE skan + retry + persist + dublikat yoxlaması + ixrac GET
-  content.js           — ISOLATED: vəziyyət maşını, ardıcıl retry, pauza, pill, draft, snippet, statistika, storage
-  background.js        — badge, bildirişlər, canlı tab, qısayollar (commands, v1.3.0)
+  core/preview.js      — PREVIEW GUARD: avto-açılışın bloklanması
+  core/popupcloser.js  — POPAP BAĞLAYICI
+  core/drafts.js       — qaralama köməkçiləri
+  core/mdexport.js     — markdown ixracı
+  inject.js            — MAIN world: fetch/XHR yaxalama + SSE skan + retry + persist + dublikat yoxlaması
+  content.js           — ISOLATED: vəziyyət maşını, ardıcıl retry, pauza, pill, draft, snippet, sayğaç
+  background.js        — badge, bildirişlər, canlı tab, qısayollar
   ff-bootstrap.js      — Firefox: inject.bundle.js script-teqi ilə (WAR)
-  popup/               — vəziyyət + parametrlər + alətlər (ixrac/pauza) + şəbəkə jurnalı
-  options/             — AYARLAR SƏHİFƏSİ: preview, qaralama, snippet CRUD, popap açar sözləri, statistika, backup
-  pill.css, welcome.html, manifest.chrome.json (MV3), manifest.firefox.json (MV2)
+  popup/               — vəziyyət + tez ayarlar + alətlər (təmiz UI)
+  options/             — tam ayarlar səhifəsi (təmiz UI)
+  pill.css             — səhifə içi HUD (vəziyyət kartı, snippet, qaralama, sayğaç)
+  manifest.chrome.json (MV3), manifest.firefox.json (MV2)
 test/
   unit/ mock/ e2e/     — yuxarıdakı cədvəldə
 ```

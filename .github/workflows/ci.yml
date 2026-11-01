@@ -55,5 +55,5 @@ jobs:
       - name: Zip-ləri yüklə
         uses: actions/upload-artifact@v4
         with:
-          name: zai-autoresend-zips
+          name: better-zai-zips
           path: dist/zips/
