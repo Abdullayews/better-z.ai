@@ -17,6 +17,10 @@
     sNotify: $('sNotify'), sNotifyDone: $('sNotifyDone'),
     sSerial: $('sSerial'), sDupGuard: $('sDupGuard'), sDomFallback: $('sDomFallback'),
     sClosePopups: $('sClosePopups'), sPopupPatterns: $('sPopupPatterns'),
+    /* v1.3.0 */
+    sAdaptive: $('sAdaptive'), sNotifySound: $('sNotifySound'),
+    sWordCounter: $('sWordCounter'), sBackupMaxChats: $('sBackupMaxChats'),
+    sShortcuts: $('sShortcuts'),
     statGrid: $('statGrid'), btnResetStats: $('btnResetStats'),
     btnExportCfg: $('btnExportCfg'), fileImportCfg: $('fileImportCfg'), impNote: $('impNote'),
     btnReset: $('btnReset'), savedNote: $('savedNote'), linkWelcome: $('linkWelcome')
@@ -87,6 +91,12 @@
     els.sSerial.checked = s.serialRetries !== false;
     els.sDupGuard.checked = s.dupGuard !== false;
     els.sDomFallback.checked = !!s.domFallback;
+    /* v1.3.0 */
+    els.sAdaptive.checked = s.adaptiveBackoff !== false;
+    els.sNotifySound.checked = !!s.notifySound;
+    els.sWordCounter.checked = s.wordCounter !== false;
+    els.sBackupMaxChats.value = s.backupMaxChats != null ? s.backupMaxChats : (d.backupMaxChats || 50);
+    els.sShortcuts.checked = s.shortcutsEnabled !== false;
     els.sClosePopups.checked = s.closePopups !== false;
     els.sPopupPatterns.value = Array.isArray(s.popupPatterns)
       ? s.popupPatterns.join('\n')
@@ -113,6 +123,12 @@
       serialRetries: els.sSerial.checked,
       dupGuard: els.sDupGuard.checked,
       domFallback: els.sDomFallback.checked,
+      /* v1.3.0 */
+      adaptiveBackoff: els.sAdaptive.checked,
+      notifySound: els.sNotifySound.checked,
+      wordCounter: els.sWordCounter.checked,
+      backupMaxChats: Math.max(1, Math.min(300, Number(els.sBackupMaxChats.value) || 50)),
+      shortcutsEnabled: els.sShortcuts.checked,
       closePopups: els.sClosePopups.checked,
       popupPatterns: els.sPopupPatterns.value.split('\n')
         .map(function (x) { return x.trim(); })
@@ -142,7 +158,8 @@
    els.sMaxRetries, els.sInitialDelay, els.sFactor, els.sMaxDelay,
    els.sResign, els.sPersist, els.sAutoReload, els.sNotify, els.sNotifyDone,
    els.sSerial, els.sDupGuard, els.sDomFallback,
-   els.sClosePopups, els.sPopupPatterns]
+   els.sClosePopups, els.sPopupPatterns,
+   els.sAdaptive, els.sNotifySound, els.sWordCounter, els.sBackupMaxChats, els.sShortcuts]
     .forEach(function (el) {
       el.addEventListener('change', onChange);
       el.addEventListener('input', onChange);
@@ -170,7 +187,9 @@
     ['popupsClosed', 'Bağlanan popap'],
     ['draftsRestored', 'Bərpa olunan qaralama'],
     ['snippetsInserted', 'Yerləşən snippet'],
-    ['exports', 'İxrac olunan söhbət']
+    ['exports', 'İxrac olunan söhbət'],
+    ['backups', 'Tam backup'],
+    ['shortcutActions', 'Qısayol istifadəsi']
   ];
 
   function renderStats() {
@@ -203,7 +222,7 @@
     chrome.storage.local.get(['settings'], function (got) {
       var cur = (got && got.settings) || {};
       var merged = Object.assign({}, DEFAULTS, cur);
-      var blob = new Blob([JSON.stringify({ zaiAutoresendSettings: true, version: '1.2.0', settings: merged }, null, 2)],
+      var blob = new Blob([JSON.stringify({ zaiAutoresendSettings: true, version: '1.3.0', settings: merged }, null, 2)],
         { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

@@ -77,6 +77,8 @@
     <div class="toggles" style="margin-top:10px">
       <label><input type="checkbox" id="sSerial"> 🎯 Ardıcıl retry — eyni anda yalnız bir mesaj yenidən göndərilir (sıra qorunur)</label>
       <label><input type="checkbox" id="sDupGuard"> 🛡️ Dublikat qorunması — retry-dan əvvəl server tarixçəsi yoxlanılır; mesaj onsuz da çatıbsa yenidən göndərilmir</label>
+      <label><input type="checkbox" id="sAdaptive"> ⏱️ Adaptiv backoff — ardıcıl "busy" xətalarında gözləmələr tədricən uzanır (maks ×3)</label>
+      <label><input type="checkbox" id="sNotifySound"> 🔊 "Cavab hazırdır" anında yumşaq səs (tab arxa planda olanda)</label>
     </div>
     <p class="note">📎 Mesajın attachment-larla birlikdə qorunub bərpa edilməsi <b>həmişə aktivdir</b> —
     bu əsas funksiya söndürülə bilməz. Uğursuz mesajın tam mətni pill-dəki <b>⧉</b> düyməsi və ya
@@ -97,6 +99,52 @@
     <label class="arealbl">Açar sözlər (hər biri ayrı sətir — mətn bu sözlərdən birini içerəndə bağlanılır):
       <textarea id="sPopupPatterns" rows="5" placeholder="peak hours&#10;currently in peak"></textarea>
     </label>
+  </section>
+
+  <section class="card">
+    <h2>🔤 Söz sayğacı <span class="tag">yeni</span></h2>
+    <label class="toggle">
+      <input type="checkbox" id="sWordCounter">
+      <span class="tx">
+        <b>Kompozitor yanında canlı söz/simvol sayı</b>
+        <small>Mesaj yazarkən sağ altda kiçik göstərici görünür: "12 söz · 84 simvol".
+        Uzun prompt-ların ölçüsünü izləmək üçün.</small>
+      </span>
+    </label>
+  </section>
+
+  <section class="card">
+    <h2>⤓ Tam backup <span class="tag">yeni</span></h2>
+    <label class="toggle">
+      <span class="tx">
+        <b>BÜTÜN söhbətlərin ehtiyat nüsxəsi (.md + .json)</b>
+        <small>Popup → "⤓⤓ Tam backup" — chat siyahısı və hər bir söhbətin tam
+        tarixçəsi endirilir: insan-oxunaqlı <b>Markdown</b> + orijinal strukturlu
+        <b>JSON</b>. Fayllar yalnız sizin kompyuterə yazılır, heç bir yerə göndərilmir.</small>
+      </span>
+    </label>
+    <div class="grid" style="margin-top:12px">
+      <label>Maksimum söhbət sayı (backup başına)<input type="number" id="sBackupMaxChats" min="1" max="300"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>⌨️ Klaviatura qısayolları <span class="tag">yeni</span></h2>
+    <label class="toggle">
+      <input type="checkbox" id="sShortcuts">
+      <span class="tx">
+        <b>Qısayolları aktivləşdir</b>
+        <small>chat.z.ai tab-i açıq olanda işləyir:</small>
+      </span>
+    </label>
+    <ul class="keys">
+      <li><kbd>Alt</kbd>+<kbd>R</kbd> — gözləyən mesajı dərhal yenidən göndər ("İndi cəhd et")</li>
+      <li><kbd>Alt</kbd>+<kbd>P</kbd> — avtomatik retry-ləri dayandır / davam etdir</li>
+      <li><kbd>Alt</kbd>+<kbd>E</kbd> — cari söhbəti Markdown (.md) kimi ixrac et</li>
+    </ul>
+    <p class="note">Qısayolları brauzerin öz menecerində də dəyişə bilərsiniz —
+    Chrome: <b>chrome://extensions/shortcuts</b>, Firefox: <b>about:addons</b> →
+    Extensions → Manage Extension Shortcuts.</p>
   </section>
 
   <section class="card">
@@ -123,7 +171,7 @@
     <span id="savedNote">✓ Yadda saxlanıldı</span>
   </div>
 
-  <footer>v1.2.0 · yalnız chat.z.ai üçün · <a id="linkWelcome" href="#" target="_blank">Necə işləyir?</a></footer>
+  <footer>v1.3.0 · yalnız chat.z.ai üçün · <a id="linkWelcome" href="#" target="_blank">Necə işləyir?</a></footer>
 </div>
 <script src="../core/defaults.js"></script>
 <script src="options.js"></script>

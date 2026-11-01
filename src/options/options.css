@@ -120,3 +120,25 @@ button.ghost:hover, label.ghost.file:hover { background: rgba(64,153,255,.22); }
 label.ghost.file input[type=file] { display: none; }
 #impNote { color: #34d399; font-size: 12.5px; }
 #impNote:empty { display: none; }
+
+/* ============ v1.3.0: klaviatura qısayolları ============ */
+
+.keys {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #d5d5de;
+  font-size: 13px;
+}
+.keys kbd {
+  background: #22223a;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 1px 7px;
+  font: 12px/1.6 ui-monospace, Menlo, Consolas, monospace;
+  color: #f2f2f5;
+}
