@@ -196,7 +196,7 @@
   /* ---------- Capture (SİNXRON) ---------- */
 
   function summarizeBody(bodyJson) {
-    var meta = { promptPreview: '', attachments: [] };
+    var meta = { promptPreview: '', attachments: [], lastUserText: '' };
     try {
       if (bodyJson && typeof bodyJson.signature_prompt === 'string') {
         meta.promptPreview = C.firstLine(bodyJson.signature_prompt, 120);
@@ -206,16 +206,24 @@
       if (last) {
         if (typeof last.content === 'string') {
           if (!meta.promptPreview) meta.promptPreview = C.firstLine(last.content, 120);
+          meta.lastUserText = last.content;
         } else if (Array.isArray(last.content)) {
+          var texts = [];
           last.content.forEach(function (part) {
-            if (part && part.type === 'text' && !meta.promptPreview) meta.promptPreview = C.firstLine(part.text || '', 120);
+            if (part && part.type === 'text') {
+              texts.push(part.text || '');
+              if (!meta.promptPreview) meta.promptPreview = C.firstLine(part.text || '', 120);
+            }
             if (part && part.type === 'image_url') meta.attachments.push({ type: 'image' });
             if (part && part.type === 'file_url') meta.attachments.push({ type: 'file' });
             if (part && part.type === 'video_url') meta.attachments.push({ type: 'video' });
           });
+          meta.lastUserText = texts.join('\n');
         }
       }
     } catch (e) { /* ignore */ }
+    // v1.2.0: uğursuz mesajın TAM mətni (kopyala düyməsi üçün)
+    meta.lastUserText = String(meta.lastUserText || '').slice(0, 200000);
     return meta;
   }
 
@@ -265,6 +273,7 @@
       bodyLen: rec.body ? rec.body.length : 0,
       canReplay: rec.canReplay, canResign: rec.canResign,
       promptPreview: rec.promptPreview, attachments: rec.attachments,
+      lastUserText: rec.lastUserText || '',
       chatId: rec.chatId, ts: rec.ts
     };
   }
@@ -308,6 +317,32 @@
     } catch (e) { /* ignore */ }
   }
 
+  /* ---------- Dublikat qorunması (v1.2.0) ----------
+   *
+   * Retry-dan ƏVVƏL server tarixçəsi yoxlanılır: mesaj onsuz da çatıb və
+   * cavabı yazılıbsa (məs. axın kəsilib, amma server yazıb) yenidən
+   * göndərmək DUB_LİKAT yaradar — ona görə retry ləğv edilir.
+   */
+  async function checkDuplicate(rec) {
+    try {
+      var g = await ofetch(rec.origin + '/api/v1/chats/' + encodeURIComponent(rec.chatId), {
+        method: 'GET', headers: authishHeaders(rec, false), credentials: 'same-origin'
+      });
+      if (!g.ok) return false;
+      var j = await g.json();
+      var chat = (j && j.chat) ? j.chat : j;
+      var msgs = (chat && chat.history && chat.history.messages) || {};
+      var um = msgs[rec.bodyJson.current_user_message_id];
+      if (!um) return false;
+      var kids = um.childrenIds || [];
+      for (var i = 0; i < kids.length; i++) {
+        var k = msgs[kids[i]];
+        if (k && k.role === 'assistant' && k.done !== false) return true;
+      }
+      return false;
+    } catch (e) { return false; }
+  }
+
   /* ---------- Retry icraçısı ---------- */
 
   async function doRetry(id, opts) {
@@ -320,6 +355,19 @@
     if (!rec.canReplay || typeof rec.body !== 'string') {
       POST({ t: 'RESULT', src: 'retry', id: id, outcome: 'fatal', reason: 'not_replayable', msg: 'Sorğu təkrarlanabilməz' });
       return;
+    }
+    /* v1.2.0: dublikat qorunması — sorğu getməzdən əvvəl serverə baxılır */
+    if (opts.dupGuard && rec.chatId && rec.bodyJson && rec.bodyJson.current_user_message_id) {
+      var dup = await checkDuplicate(rec);
+      if (dup) {
+        POST({ t: 'LOG', line: 'dublikat qorunması: mesaj onsuz da tarixçədədir — retry ləğv edildi' });
+        POST({
+          t: 'RESULT', src: 'retry', id: rec.id, outcome: 'success',
+          reason: 'duplicate_avoided', msg: 'Mesaj onsuz da göndərilib (dublikat qorunması)',
+          dupGuard: true
+        });
+        return;
+      }
     }
     var url = rec.url;
     var headers = Object.assign({}, rec.headers);
@@ -477,6 +525,100 @@
       POST({ t: 'PERSISTED', id: id, ok: pr.ok, status: pr.status });
     } catch (e) {
       POST({ t: 'PERSISTED', id: id, ok: false, why: String(e) });
+    }
+  }
+
+  /* ---------- Söhbətin ixracı (v1.2.0) ----------
+   *
+   * GET /api/v1/chats/{id} — mövcud sessiya kukiləri ilə; cavab content
+   * script-ə ötürülür, Markdown orada qurulur (core/mdexport.js).
+   */
+  async function doExport(chatId) {
+    try {
+      var cid = String(chatId || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      if (!cid) { POST({ t: 'EXPORTED', ok: false, why: 'no_chat_id' }); return; }
+      var anyRec = null;
+      recs.forEach(function (r) { if (!anyRec && r.headers && r.headers.authorization) anyRec = r; });
+      var headers = anyRec ? authishHeaders(anyRec, false) : { accept: 'application/json' };
+      var r = await ofetch(self.location.origin + '/api/v1/chats/' + cid, {
+        method: 'GET', headers: headers, credentials: 'same-origin'
+      });
+      if (!r.ok) { POST({ t: 'EXPORTED', ok: false, why: 'http_' + r.status }); return; }
+      var j = await r.json();
+      POST({ t: 'EXPORTED', ok: true, chat: (j && j.chat) ? j.chat : j, chatId: cid });
+    } catch (e) {
+      POST({ t: 'EXPORTED', ok: false, why: String(e) });
+    }
+  }
+
+  /* ---------- BÜTÜN SÖHBƏTLƏRİN BACKUP-I (v1.3.0) ----------
+   *
+   * GET /api/v1/chats/?page=N&type=default → [{id, title, updated_at}]
+   * (protokol spec-i: səhifələmə 1..10, boş səhifə / təkrar ilk id / qısa
+   * səhifə / 300-dən çox halında dayan). Sonra hər chatın detalı ayrıca
+   * gətirilir; progress content script-ə axınla ötürülür.
+   */
+  function authishHeadersAny() {
+    var anyRec = null;
+    recs.forEach(function (r) { if (!anyRec && r.headers && r.headers.authorization) anyRec = r; });
+    return anyRec ? authishHeaders(anyRec, false) : { accept: 'application/json' };
+  }
+
+  async function listChats() {
+    var headers = authishHeadersAny();
+    var out = [];
+    var firstPrev = null;
+    for (var pg = 1; pg <= 10; pg++) {
+      var r = await ofetch(self.location.origin + '/api/v1/chats/?page=' + pg + '&type=default', {
+        method: 'GET', headers: headers, credentials: 'same-origin'
+      });
+      if (!r.ok) break;
+      var j = null;
+      try { j = await r.json(); } catch (e) { j = null; }
+      var arr = Array.isArray(j) ? j
+        : (j && Array.isArray(j.chats) ? j.chats
+          : (j && Array.isArray(j.data) ? j.data : null));
+      if (!arr || !arr.length) break;
+      var firstId = arr[0] && arr[0].id;
+      if (firstPrev && firstId === firstPrev) break; // server səhifələməni iqnor edir
+      firstPrev = firstId;
+      out = out.concat(arr);
+      if (arr.length < 20) break; // qısa səhifə — sonuncudur
+      if (out.length > 300) break;
+    }
+    return out.filter(function (c) { return c && c.id; });
+  }
+
+  async function doBackupAll(maxChats) {
+    try {
+      var list = await listChats();
+      if (!list.length) { POST({ t: 'BACKUP_DONE', ok: false, why: 'no_chats' }); return; }
+      var limit = Math.max(1, Math.min(300, Number(maxChats) || 50));
+      var target = list.slice(0, limit);
+      var headers = authishHeadersAny();
+      var chats = [];
+      for (var i = 0; i < target.length; i++) {
+        var cid = String(target[i].id);
+        try {
+          var r = await ofetch(self.location.origin + '/api/v1/chats/' + encodeURIComponent(cid), {
+            method: 'GET', headers: headers, credentials: 'same-origin'
+          });
+          if (r.ok) {
+            var j = await r.json();
+            chats.push((j && j.chat) ? j.chat : j);
+          }
+        } catch (e) { /* bu söhbət alınmadı — qalanı davam etsin */ }
+        POST({
+          t: 'BACKUP_PROGRESS', done: i + 1, total: target.length,
+          title: String(target[i].title || '').slice(0, 60)
+        });
+      }
+      POST({
+        t: 'BACKUP_DONE', ok: true, chats: chats,
+        list: target.map(function (c) { return { id: c.id, title: c.title || '', updated_at: c.updated_at || 0 }; })
+      });
+    } catch (e) {
+      POST({ t: 'BACKUP_DONE', ok: false, why: String(e) });
     }
   }
 
@@ -665,6 +807,8 @@
     if (d.t === 'INIT') { if (d.settings) settings = Object.assign(settings, d.settings); return; }
     if (d.t === 'RETRY') { doRetry(d.id, d.opts || {}); return; }
     if (d.t === 'PERSIST') { doPersist(d.id); return; }
+    if (d.t === 'EXPORT') { doExport(d.chatId); return; }
+    if (d.t === 'BACKUP_ALL') { doBackupAll(d.maxChats); return; }
     if (d.t === 'HYDRATE') {
       (d.records || []).forEach(function (r) {
         if (recs.has(r.id)) return;
@@ -677,6 +821,7 @@
             headers: r.headers || {}, body: r.body || null, bodyJson: bodyJson,
             canReplay: !!(r.body && r.canReplay), canResign: !!(r.canResign),
             promptPreview: r.promptPreview || '', attachments: r.attachments || [],
+            lastUserText: r.lastUserText || '',
             chatId: r.chatId || '', ts: r.ts || 0, lastText: r.lastText || ''
           });
         } catch (e) { /* ignore */ }

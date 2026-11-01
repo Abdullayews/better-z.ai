@@ -1,4 +1,4 @@
-/* Z.ai Auto-Resend — pill (vəziyyət kartı) styling.
+/* Z.ai Auto-Resend — pill (vəziyyət kartı) + fab + snippet menyu + draft banner.
    Manifest-dən yüklənir → səhifənin CSP-si tətbiq olunmur. */
 
 .zai-ext-pill {
@@ -53,8 +53,128 @@
 
 .zai-ext-pill .zai-ext-btn:hover { background: rgba(255, 255, 255, 0.14); }
 .zai-ext-pill .zai-ext-btn.zai-ext-del { padding: 3px 7px; opacity: 0.7; }
+.zai-ext-pill .zai-ext-btn.zai-ext-copy,
+.zai-ext-pill .zai-ext-btn.zai-ext-pause { padding: 3px 7px; }
 
 @keyframes zai-ext-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
+}
+
+/* ============ v1.2.0: ⚡ snippet düyməsi ============ */
+
+.zai-ext-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 128px;
+  z-index: 2147483000;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #14141f;
+  color: #f2f2f5;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.zai-ext-fab:hover { background: #1d1d2e; }
+
+/* ============ v1.2.0: snippet menyusu ============ */
+
+.zai-ext-snip {
+  position: fixed;
+  right: 16px;
+  bottom: 172px;
+  z-index: 2147483000;
+  min-width: 230px;
+  max-width: 300px;
+  background: #14141f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  padding: 6px;
+  font: 12px/1.45 system-ui, -apple-system, sans-serif;
+  color: #f2f2f5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zai-ext-snip .zai-ext-snip-head {
+  color: #9a9aa8;
+  font-size: 11px;
+  padding: 4px 8px 2px;
+}
+
+.zai-ext-snip .zai-ext-snip-item {
+  text-align: left;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f2f2f5;
+  border-radius: 8px;
+  padding: 6px 9px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: 12px/1.4 system-ui, sans-serif;
+}
+
+.zai-ext-snip .zai-ext-snip-item:hover { background: rgba(255, 255, 255, 0.12); }
+.zai-ext-snip .zai-ext-snip-item b { font-size: 12px; }
+.zai-ext-snip .zai-ext-snip-item span { color: #9a9aa8; font-size: 11px; }
+
+/* ============ v1.2.0: qaralama bərpa bannerı ============ */
+
+.zai-ext-draft {
+  position: fixed;
+  right: 16px;
+  bottom: 216px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 380px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #14141f;
+  color: #f2f2f5;
+  font: 12px/1.45 system-ui, -apple-system, sans-serif;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.zai-ext-draft .zai-ext-ico { flex: 0 0 auto; }
+.zai-ext-draft .zai-ext-text {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zai-ext-draft .zai-ext-btn {
+  flex: 0 0 auto;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border-radius: 7px;
+  padding: 3px 9px;
+  font: 11px/1.3 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.zai-ext-draft .zai-ext-btn:hover { background: rgba(16, 185, 129, 0.22); }
+.zai-ext-draft .zai-ext-btn.zai-ext-del {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f2f2f5;
+  opacity: 0.7;
+  padding: 3px 7px;
 }

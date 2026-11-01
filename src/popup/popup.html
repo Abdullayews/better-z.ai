@@ -20,7 +20,16 @@
 </section>
 
 <section>
-  <h3 class="h-row"><span>Parametrlər</span><button id="btnSave" class="mini">Yadda saxla</button></h3>
+  <h3 class="h-row"><span>Alətlər</span></h3>
+  <div class="tools">
+    <button id="btnExport" class="tool" title="Bu söhbəti Markdown faylı kimi yüklə">⤓ Söhbəti ixrac et (.md)</button>
+    <button id="btnPause" class="tool">⏸ Retry-ləri dayandır</button>
+  </div>
+  <div id="statsLine" class="stats">—</div>
+</section>
+
+<section>
+  <h3 class="h-row"><span>Parametrlər</span><span class="h-btns"><button id="btnOptions" class="mini">Ayarlar…</button> <button id="btnSave" class="mini">Yadda saxla</button></span></h3>
   <div class="grid">
     <label>Maks. cəhd<input id="sMaxRetries" type="number" min="1" max="30"></label>
     <label>İlkin gecikmə, ms<input id="sInitialDelay" type="number" min="300" step="100"></label>
@@ -28,10 +37,17 @@
     <label>Maks. gecikmə, ms<input id="sMaxDelay" type="number" min="1000" step="1000"></label>
   </div>
   <div class="toggles">
+    <label><input id="sBlockPreview" type="checkbox"> 🖼️ Fayl preview-ləri avtomatik açılmasın (yalnız kliklə)</label>
+    <label><input id="sClosePopups" type="checkbox"> 🚪 "Peak hours" kimi popaplar avtomatik bağlansın</label>
+    <label><input id="sDraftGuard" type="checkbox"> 📝 Qaradamalar yadda saxlansın + bərpa təklifi</label>
+    <label><input id="sSnippets" type="checkbox"> ⚡ Snippet menysu (tez istifadə şablonları)</label>
     <label><input id="sResign" type="checkbox"> İmza yeniləməsi (köhnə imzaları yenidən imzala)</label>
     <label><input id="sPersist" type="checkbox"> Uğurdan sonra tarixçəni yaz (persist)</label>
     <label><input id="sAutoReload" type="checkbox"> Uğurdan sonra səhifəni yenilə</label>
     <label><input id="sNotify" type="checkbox"> Bildirişlər</label>
+    <label><input id="sNotifyDone" type="checkbox"> 🔔 "Cavab hazırdır" bildirişi (tab arxa planda olanda)</label>
+    <label><input id="sSerial" type="checkbox"> 🎯 Ardıcıl retry (mesaj sırası qorunur)</label>
+    <label><input id="sDupGuard" type="checkbox"> 🛡️ Dublikat qorunması (retry-dan əvvəl yoxlanış)</label>
     <label><input id="sDomFallback" type="checkbox"> DOM ehtiyat rejimi (yalnız "busy" mətni görünsə retry)</label>
   </div>
 </section>
@@ -41,7 +57,7 @@
   <pre id="logBox">…</pre>
 </section>
 
-<footer>v1.0.0 · yalnız chat.z.ai üçün</footer>
+<footer>v1.2.0 · yalnız chat.z.ai üçün</footer>
 
 <script src="popup.js"></script>
 </body>

@@ -26,6 +26,7 @@ button.mini {
   border-radius: 7px; padding: 3px 10px; font-size: 11px; cursor: pointer;
 }
 button.mini:hover { background: rgba(64,153,255,.3); }
+.h-btns { display: inline-flex; gap: 6px; }
 
 .recs { display: flex; flex-direction: column; gap: 8px; }
 .recs .empty { color: #74747e; font-size: 12px; padding: 4px 0; }
@@ -74,3 +75,15 @@ pre#logBox {
 footer { padding: 9px 14px; color: #74747e; font-size: 11px; }
 #conn.ok { color: #34d399; }
 #conn.err { color: #f87171; }
+
+/* v1.2.0 — Alətlər bölməsi */
+.tools { display: flex; flex-direction: column; gap: 6px; }
+.tools .tool {
+  background: rgba(64,153,255,.13); color: #7cc0ff; border: 1px solid rgba(64,153,255,.35);
+  border-radius: 8px; padding: 7px 10px; font-size: 12px; cursor: pointer; text-align: left;
+}
+.tools .tool:hover { background: rgba(64,153,255,.28); }
+.stats {
+  margin-top: 8px; color: #8b8b98; font-size: 10.5px; line-height: 1.6;
+  background: #12121e; border: 1px solid rgba(255,255,255,.06); border-radius: 8px; padding: 6px 9px;
+}
