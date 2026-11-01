@@ -1,17 +1,35 @@
 {
   "manifest_version": 2,
   "name": "Z.ai Auto-Resend",
-  "version": "1.0.0",
-  "description": "Sistem məşğul (system is busy) və digər xətalarda mesajı attachment-larla birlikdə avtomatik yenidən göndərir.",
+  "version": "1.3.0",
+  "description": "Sistem məşğul (system is busy) və digər xətalarda mesajı attachment-larla birlikdə avtomatik yenidən göndərir; preview-lərin avtomatik açılmasını əngəlləyir + qaralama mühafizəsi, snippet kitabxanası, söhbət ixracı, tam backup, qısayollar, popap bağlayıcı.",
   "browser_specific_settings": {
     "gecko": {
       "id": "zai-autoresend@abdullayews",
       "strict_min_version": "112.0"
     }
   },
-  "permissions": ["storage", "notifications", "unlimitedStorage"],
+  "permissions": ["storage", "notifications", "unlimitedStorage", "clipboardWrite"],
   "background": { "scripts": ["background.js"] },
   "web_accessible_resources": ["inject.bundle.js"],
+  "commands": {
+    "retry-now": {
+      "suggested_key": { "default": "Alt+R" },
+      "description": "Gözləyən mesajı dərhal yenidən göndər (İndi cəhd et)"
+    },
+    "toggle-pause": {
+      "suggested_key": { "default": "Alt+P" },
+      "description": "Avtomatik retry-ləri dayandır / davam etdir"
+    },
+    "export-chat": {
+      "suggested_key": { "default": "Alt+E" },
+      "description": "Cari söhbəti Markdown (.md) kimi ixrac et"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
   "browser_action": {
     "default_popup": "popup/popup.html",
     "default_title": "Z.ai Auto-Resend",
@@ -25,7 +43,17 @@
   "content_scripts": [
     {
       "matches": ["https://chat.z.ai/*"],
-      "js": ["ff-bootstrap.js", "core/classifier.js", "core/backoff.js", "core/defaults.js", "content.js"],
+      "js": [
+        "ff-bootstrap.js",
+        "core/classifier.js",
+        "core/backoff.js",
+        "core/defaults.js",
+        "core/drafts.js",
+        "core/preview.js",
+        "core/popupcloser.js",
+        "core/mdexport.js",
+        "content.js"
+      ],
       "css": ["pill.css"],
       "run_at": "document_start"
     }

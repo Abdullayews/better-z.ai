@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<title>Z.ai Auto-Resend — Ayarlar</title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Z.ai <span>Auto-Resend</span> — Ayarlar</h1>
+      <p class="sub">Dəyişikliklər avtomatik yadda saxlanılır və açıq səhifələrə dərhal tətbiq olunur.</p>
+    </div>
+    <span class="logo">↻</span>
+  </header>
+
+  <section class="card">
+    <h2>🖼️ Preview nəzarəti</h2>
+    <label class="toggle">
+      <input type="checkbox" id="sBlockPreview">
+      <span class="tx">
+        <b>Fayl preview-lərinin avtomatik açılmasını əngəllə</b>
+        <small>Aktiv (standart): preview pəncərələri öz-özünə açılmır — <b>yalnız siz fayla/şəkilə
+        klik etdikdə</b> açılır. Cavab generasiyası bitəndə və ya fayl əlavə olunanda saytın özü
+        açdığı preview-lər dərhal bağlanılır; sizin kliklə açdıqlarınız toxunulmaz qalır.</small>
+      </span>
+    </label>
+  </section>
+
+  <section class="card">
+    <h2>📝 Qaralama mühafizəsi <span class="tag">yeni</span></h2>
+    <label class="toggle">
+      <input type="checkbox" id="sDraftGuard">
+      <span class="tx">
+        <b>Kompozitor mətnini avtomatik yadda saxla</b>
+        <small>Yazdığınız mesaj müntəzəm yadda saxlanılır; səhifə yenilənəndə, brauzer qəflən
+        bağlananda "Qaralama tapıldı — Bərpa et" təklifi görünür. Qaralama yalnız brauzerin
+        yaddaşında saxlanılır, heç bir yerə göndərilmir.</small>
+      </span>
+    </label>
+    <div class="grid" style="margin-top:12px">
+      <label>Qaralamanın maksimum yaşı (saat)<input type="number" id="sDraftMaxAge" min="1" max="720"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>⚡ Snippet kitabxanası <span class="tag">yeni</span></h2>
+    <label class="toggle">
+      <input type="checkbox" id="sSnippets">
+      <span class="tx">
+        <b>Kompozitor yanında "⚡ Tez istifadə" düyməsi</b>
+        <small>Seçdiyiniz şablonları bir kliklə mesaj sahəsinə yerləşdirin. Snippetləri aşağıda
+        əlavə edib redaktə edə bilərsiniz.</small>
+      </span>
+    </label>
+    <div id="snipList" class="snips"></div>
+    <button id="btnAddSnippet" class="add" type="button">+ Yeni snippet</button>
+  </section>
+
+  <section class="card">
+    <h2>↻ Avtomatik yenidən göndərmə</h2>
+    <div class="grid">
+      <label>Maksimum cəhd sayı<input type="number" id="sMaxRetries" min="1" max="30"></label>
+      <label>İlkin gecikmə (ms)<input type="number" id="sInitialDelay" min="300" step="100"></label>
+      <label>Backoff amili<input type="number" id="sFactor" min="1" step="0.1"></label>
+      <label>Maksimum gecikmə (ms)<input type="number" id="sMaxDelay" min="1000" step="1000"></label>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="sResign"> İmza yeniləməsi (köhnə imzaları yenidən imzala)</label>
+      <label><input type="checkbox" id="sPersist"> Uğurdan sonra tarixçəni yaz (persist)</label>
+      <label><input type="checkbox" id="sAutoReload"> Uğurdan sonra səhifəni yenilə</label>
+      <label><input type="checkbox" id="sNotify"> Bildirişlər</label>
+      <label><input type="checkbox" id="sNotifyDone"> 🔔 "Cavab hazırdır" bildirişi (tab arxa planda olanda)</label>
+      <label><input type="checkbox" id="sDomFallback"> DOM ehtiyat rejimi (yalnız "busy" mətni görünsə retry)</label>
+    </div>
+    <div class="toggles" style="margin-top:10px">
+      <label><input type="checkbox" id="sSerial"> 🎯 Ardıcıl retry — eyni anda yalnız bir mesaj yenidən göndərilir (sıra qorunur)</label>
+      <label><input type="checkbox" id="sDupGuard"> 🛡️ Dublikat qorunması — retry-dan əvvəl server tarixçəsi yoxlanılır; mesaj onsuz da çatıbsa yenidən göndərilmir</label>
+    </div>
+    <p class="note">📎 Mesajın attachment-larla birlikdə qorunub bərpa edilməsi <b>həmişə aktivdir</b> —
+    bu əsas funksiya söndürülə bilməz. Uğursuz mesajın tam mətni pill-dəki <b>⧉</b> düyməsi və ya
+    popup ilə hər an kopyalana bilər.</p>
+  </section>
+
+  <section class="card">
+    <h2>🚪 Popap bağlayıcı <span class="tag">yeni</span></h2>
+    <label class="toggle">
+      <input type="checkbox" id="sClosePopups">
+      <span class="tx">
+        <b>"Currently in peak hours" kimi popapları avtomatik bağla</b>
+        <small>z.ai bəzən öz-özünə xəbərdarlıq/reklam pəncərələri açır (pik saatları, limit
+        xəbərdarlıqları…). Bu pəncərələr açar-sözlərə uyğun gələndə avtomatik bağlanılır.
+        <b>Parol soruşan və ya mətn daxiletmə sahəsi olan pəncərələr heç vaxt bağlanmır.</b></small>
+      </span>
+    </label>
+    <label class="arealbl">Açar sözlər (hər biri ayrı sətir — mətn bu sözlərdən birini içerəndə bağlanılır):
+      <textarea id="sPopupPatterns" rows="5" placeholder="peak hours&#10;currently in peak"></textarea>
+    </label>
+  </section>
+
+  <section class="card">
+    <h2>📊 Statistika <span class="tag">yeni</span></h2>
+    <div id="statGrid" class="statGrid"></div>
+    <div class="actions" style="margin:12px 0 0">
+      <button id="btnResetStats">Sayğaçları sıfırla</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>💾 Ayarların ehtiyat nüsxəsi</h2>
+    <div class="actions" style="margin:0">
+      <button id="btnExportCfg" class="ghost">⤓ Ayarları ixrac et (JSON)</button>
+      <label class="ghost file">⤒ İxrac etdikdən sonra idxal et
+        <input type="file" id="fileImportCfg" accept="application/json,.json">
+      </label>
+      <span id="impNote"></span>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button id="btnReset">Standart ayarlara qaytar</button>
+    <span id="savedNote">✓ Yadda saxlanıldı</span>
+  </div>
+
+  <footer>v1.2.0 · yalnız chat.z.ai üçün · <a id="linkWelcome" href="#" target="_blank">Necə işləyir?</a></footer>
+</div>
+<script src="../core/defaults.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

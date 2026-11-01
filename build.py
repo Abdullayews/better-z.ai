@@ -25,13 +25,41 @@ PROD_DEFAULTS = {
     "maxRetries": 6, "initialDelayMs": 5000, "backoffFactor": 2.0,
     "maxDelayMs": 120000, "jitter": 0.25, "retryOnHttpError": True,
     "resign": True, "minResignAgeMs": 240000, "persistAfterRetry": True,
-    "autoReload": True, "domFallback": False, "notify": True
+    "autoReload": True, "domFallback": False, "notify": True,
+    "blockAutoPreview": True,
+    # v1.2.0
+    "draftGuard": True, "draftMaxAgeH": 72,
+    "snippetsEnabled": True,
+    "snippets": [
+        {"name": "Qısa cavab", "text": "Zəhmət olmasa qısa və konkret cavab ver."},
+        {"name": "Kod izahı", "text": "Bu kodu addım-addım izah et:"}
+    ],
+    "notifyDone": True, "closePopups": True,
+    "popupPatterns": ["peak hours", "currently in peak", "pik saat", "high traffic", "rate limit"],
+    "serialRetries": True, "dupGuard": True,
+    # v1.3.0
+    "shortcutsEnabled": True, "wordCounter": True, "notifySound": False,
+    "adaptiveBackoff": True, "backupMaxChats": 50
 }
 TEST_DEFAULTS = {
     "maxRetries": 4, "initialDelayMs": 2000, "backoffFactor": 1.6,
     "maxDelayMs": 5000, "jitter": 0.1, "retryOnHttpError": True,
     "resign": True, "minResignAgeMs": 300, "persistAfterRetry": True,
-    "autoReload": True, "domFallback": False, "notify": True
+    "autoReload": True, "domFallback": False, "notify": True,
+    "blockAutoPreview": True,
+    # v1.2.0
+    "draftGuard": True, "draftMaxAgeH": 72,
+    "snippetsEnabled": True,
+    "snippets": [
+        {"name": "Qısa cavab", "text": "Zəhmət olmasa qısa və konkret cavab ver."},
+        {"name": "Kod izahı", "text": "Bu kodu addım-addım izah et:"}
+    ],
+    "notifyDone": True, "closePopups": True,
+    "popupPatterns": ["peak hours", "currently in peak", "pik saat", "high traffic", "rate limit"],
+    "serialRetries": True, "dupGuard": True,
+    # v1.3.0
+    "shortcutsEnabled": True, "wordCounter": True, "notifySound": False,
+    "adaptiveBackoff": True, "backupMaxChats": 50
 }
 
 
@@ -56,7 +84,7 @@ def build_browser(browser: str) -> dict:
 
     (out / "core").mkdir()
     # ISOLATED world faylları (MAIN ilə paylaşılmır!)
-    for f in ["classifier.js", "backoff.js"]:
+    for f in ["classifier.js", "backoff.js", "drafts.js", "preview.js", "popupcloser.js", "mdexport.js"]:
         shutil.copy2(SRC / "core" / f, out / "core" / f)
     write_defaults(out)
 
@@ -72,6 +100,7 @@ def build_browser(browser: str) -> dict:
         # MV2: world:MAIN dəstəklənmir → WAR + script-teq bootstrap
         shutil.copy2(SRC / "ff-bootstrap.js", out / "ff-bootstrap.js")
     shutil.copytree(SRC / "popup", out / "popup")
+    shutil.copytree(SRC / "options", out / "options")
     shutil.copytree(SRC / "icons", out / "icons")
 
     # background = defaults + background.js

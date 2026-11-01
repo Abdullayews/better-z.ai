@@ -88,4 +88,29 @@
       chrome.tabs.create({ url: 'https://chat.z.ai/' });
     });
   });
+
+  /* ---------- v1.3.0: klaviatura qısayolları (commands API) ----------
+   *
+   * Alt+R — gözləyən mesajı dərhal yenidən göndər ("İndi cəhd et")
+   * Alt+P — avtomatik retry-ləri dayandır/davam etdir
+   * Alt+E — cari söhbəti Markdown kimi ixrac et
+   *
+   * Əmr canlı z.ai tab-inə göndərilir (content script CMD_SHORTCUT işləyir).
+   */
+  function sendToAliveTab(msg) {
+    getAlive(function (tab) {
+      if (!tab) return;
+      try {
+        chrome.tabs.sendMessage(tab.id, msg, function () {
+          if (chrome.runtime.lastError) { /* tab ölüdür — növbəti alive gözlənilir */ }
+        });
+      } catch (e) { /* ignore */ }
+    });
+  }
+
+  try {
+    chrome.commands.onCommand.addListener(function (command) {
+      sendToAliveTab({ cmd: 'CMD_SHORTCUT', action: command });
+    });
+  } catch (e) { /* commands dəstəklənmir */ }
 })();

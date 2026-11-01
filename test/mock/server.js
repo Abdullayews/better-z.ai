@@ -160,6 +160,37 @@ async function handleCompletion(req, res) {
     res.end();
     return;
   }
+  if (mode === 'duptrap') {
+    // v1.2.0 DUBLİKAT ssenarisi: server tarixçəni uğur kimi YAZIR,
+    // amma axını [DONE]-siz bitirir (axın kəsintisi). Extension retry-dan
+    // əvvəl GET /chats/{id} ilə bunu görüb yenidən göndəRMƏməlidir.
+    const bj = bodyJson || {};
+    const msgs = Array.isArray(bj.messages) ? bj.messages : [];
+    const entries = {};
+    let prev = null;
+    msgs.forEach((m, i) => {
+      const mid = (i === msgs.length - 1) ? String(bj.current_user_message_id || 'msg-' + i) : 'msg-' + i;
+      entries[mid] = {
+        id: mid, parentId: prev, childrenIds: [], role: m.role, content: m.content,
+        timestamp: Math.floor(Date.now() / 1000), models: [bj.model || 'x-preview-l']
+      };
+      if (prev && entries[prev]) entries[prev].childrenIds = [mid];
+      prev = mid;
+    });
+    const aid = String(bj.id || 'assistant-duptrap');
+    entries[aid] = {
+      id: aid, parentId: prev, childrenIds: [], role: 'assistant',
+      content: 'Server tərəfindən artıq yazılmış cavab (duptrap səhvi).',
+      timestamp: Math.floor(Date.now() / 1000), done: true, model: bj.model || 'x-preview-l'
+    };
+    if (prev && entries[prev]) entries[prev].childrenIds = [aid];
+    const chat = state.persistedChat || defaultChat();
+    chat.history = { messages: entries, currentId: aid };
+    state.persistedChat = chat;
+    sse(res, { data: { message: { delta_content: 'qismən cavab gəldi — ' } } });
+    res.end(); // [DONE] YOXDUR
+    return;
+  }
   // sse_ok
   sse(res, { data: { message: { phase: 'thinking' } } });
   sse(res, { data: { message: { delta_content: 'Salam! Bu avtomatik cavabdır — hissə 1. ' } } });

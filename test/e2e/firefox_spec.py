@@ -198,6 +198,105 @@ def main():
             raise AssertionError("avto-reload sonrası uğur görünmədi")
         print("  ✔ FFA4 səhifə avtomatik yeniləndi — uğur görünür")
 
+        # Ssenari FF-B: PREVIEW GUARD — uğurdan sonra öz-özünə açılan
+        # preview bağlanmalıdır (blockAutoPreview standart olaraq aktivdir)
+        def inject_page_js(js):
+            """Səhifə world-də JS icra et (inline script — sandbox qlobalları oxuya bilmir)."""
+            client.execute_script(
+                "var s=document.createElement('script');s.textContent=" + json.dumps(js) + ";"
+                "(document.head||document.documentElement).appendChild(s);"
+                "s.remove();", [])
+
+        def read_mock_preview():
+            inject_page_js(
+                "var d=document.getElementById('mp-probe');"
+                "if(!d){d=document.createElement('div');d.id='mp-probe';d.style.display='none';"
+                "(document.body||document.documentElement).appendChild(d);}"
+                "d.setAttribute('data-json', JSON.stringify(window.__mockPreview||{}));")
+            raw = client.execute_script(
+                "return (document.getElementById('mp-probe')||{}).getAttribute('data-json')||''", [])
+            try:
+                return json.loads(raw) if raw else {}
+            except Exception:
+                return {}
+
+        http("POST", BASE + "/_ctl", {"script": ["sse_ok"], "resetPersist": False})
+        inject_page_js("window.__mockAutoPreview = true;")
+        comp = client.find_element(By.ID, "composer")
+        comp.send_keys("preview ff testi")
+        client.find_element(By.ID, "send").click()
+        st = {}
+        deadline = time.time() + 12
+        while time.time() < deadline:
+            st = read_mock_preview()
+            if st.get("openedBy") == "auto" and st.get("open") is False and st.get("closedBy"):
+                break
+            time.sleep(0.3)
+        if not (st.get("openedBy") == "auto" and st.get("open") is False and st.get("closedBy")):
+            raise AssertionError("avtomatik preview bloklanmadı: %s" % (st,))
+        print("  ✔ FFB uğurdan sonra avtomatik preview bağlandı (%s)" % st.get("closedBy"))
+
+        # FF-C: heç bir klik/fayl əlavəsi OLMADAN, completion pəncərəsi də
+        # bitdikdən sonra öz-özünə açılan preview bağlanmalıdır.
+        # (Qeyd: "chip kliklə açılır və açıq qalır" halı Chrome E2E H1-də
+        #  ETİBARLI kliklə yoxlanılır — Marionette-in atom-kliki isTrusted=false
+        #  olduğundan burada sınana bilmir; məntiq eyni content script-dir.)
+        inject_page_js("window.__mockAutoPreview = false;")
+        time.sleep(4.6)  # FFB completion pəncərəsi (4s) bitsin
+        inject_page_js(
+            "document.getElementById('previewModal').classList.add('open');"
+            "window.__mockPreview.opens += 1;"
+            "window.__mockPreview.open = true;"
+            "window.__mockPreview.openedBy = 'auto2';"
+            "window.__mockPreview.closedBy = null;")
+        st = {}
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            st = read_mock_preview()
+            if st.get("openedBy") == "auto2" and st.get("open") is False and st.get("closedBy"):
+                break
+            time.sleep(0.3)
+        if not (st.get("openedBy") == "auto2" and st.get("open") is False and st.get("closedBy")):
+            raise AssertionError("kliksiz avtomatik preview bloklanmadı: %s" % (st,))
+        print("  ✔ FFC klik/pəncərəsiz öz-özünə açılan preview də bağlandı (%s)" % st.get("closedBy"))
+
+        # Ssenari FF-D (v1.2.0): POPAP BAĞLAYICI — "peak hours" popapı
+        # öz-özünə açılanda avtomatik bağlanmalıdır (parol dialoqu yoxlanılmır —
+        # Chrome N3-də etibarlı kliklə; Marionette atom-kliki eyni məntiqi işlədir).
+        http("POST", BASE + "/_ctl", {"script": ["sse_ok"], "resetPersist": False})
+        inject_page_js("window.__mockPeakOpen && window.__mockPeakOpen();")
+        deadline = time.time() + 8
+        closed = False
+        while time.time() < deadline:
+            vis = client.execute_script(
+                "return (function(){var m=document.getElementById('peakModal');"
+                "return !!m && m.classList.contains('open') && getComputedStyle(m).display!=='none';})()", [])
+            if not vis:
+                closed = True
+                break
+            time.sleep(0.3)
+        if not closed:
+            raise AssertionError("peak hours popapı bağlanmadı")
+        print("  ✔ FFD 'Currently in peak hours' popapı avtomatik bağlandı")
+
+        # Ssenari FF-E (v1.2.0): QARALAMA MÜHAFİZƏSİ — reload-dan sonra
+        # yazılmış mətn "Bərpa et" ilə geri qaytarılmalıdır
+        comp = client.find_element(By.ID, "composer")
+        comp.send_keys("FF qaralama testi 42")
+        time.sleep(1.8)  # debounce 800ms + save
+        client.navigate(BASE + "/")
+        time.sleep(2.4)
+        banner = client.execute_script("return !!document.querySelector('.zai-ext-draft')", [])
+        if not banner:
+            raise AssertionError("qaralama bannerı görünmədi")
+        client.execute_script(
+            "document.querySelector('.zai-ext-draft button[data-a=restore]').click();", [])
+        time.sleep(0.8)
+        val = client.execute_script("return document.getElementById('composer').value", [])
+        if val != "FF qaralama testi 42":
+            raise AssertionError("qaralama bərpa olunmadı: %r" % val)
+        print("  ✔ FFE qaralama reload sonrası bərpa olundu")
+
         print("HƏMİSİ KEÇDİ ✔ (Firefox)")
     except Exception as e:
         failures += 1

@@ -37,4 +37,15 @@
     }
     return delayMs;
   };
+
+  /*
+   * v1.3.0 ADAPTİV BACKOFF — tıxanma (congestion) amili.
+   * Ardıcıl busy/rate-limit nəticələri artdıqca gecikmələr uzanır:
+   * 0 → x1.0, 1 → x1.5, 2 → x2.0, 3 → x2.5, 4+ → x3.0 (maksimum).
+   * Uğur gələn kimi 0-a düşür (content.js tərəfindən idarə olunur).
+   */
+  C.congestionMultiplier = function (consecutiveBusy) {
+    var n = Math.max(0, consecutiveBusy | 0);
+    return 1 + 0.5 * Math.min(4, n);
+  };
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -3,6 +3,10 @@
 **chat.z.ai üçün Chrome və Firefox extension-ı** — *"system is busy"* və digər göndərmə
 xətalarında mesajınızı **attachment-larla birlikdə** avtomatik yenidən göndərir.
 
+**v1.2.0 — Ağıllı köməkçi paketi:** qaralama mühafizəsi, snippet kitabxanası, söhbətin
+Markdown ixracı, "peak hours" popap bağlayıcısı, "cavab hazırdır" bildirişi, qlobal
+pauza, ardıcıl retry, dublikat qorunması və statistika.
+
 > Əsas problem: chat.z.ai-də mesaj uğursuz olanda composer təmizlənir və **attachment-lar
 > silinir** — istifadəçi hər şeyi yenidən yükləməli olur. Bu extension o sorğunun
 > **tam nüsxəsini yaxalayır** (attachment-lar body-nin içindədir) və uğursuzluğu avtomatik
@@ -69,15 +73,22 @@ LEGACY_SPEC (zai_protokol_spec.md — ZaiMobile layihəsindən) əsasadır):
 | Persist | ✅ | uğurdan sonra tarixçəni serverə yazır |
 | Avto-yenilə | ✅ | uğurdan sonra səhifəni yeniləyir (başqa gözləmə varsa gözləyir) |
 | DOM ehtiyat rejimi | ❌ | yalnız SSE birmənalı olanda + səhifədə "busy" mətni görünəndə retry |
+| 🖼️ Preview bloku | ✅ | avtomatik açılan preview-lər bağlanılır, yalnız kliklə açılır (v1.1.0) |
+| 📝 Qaralama mühafizəsi | ✅ | kompozitor mətni yadda saxlanılır, reload-dan sonra bərpa (v1.2.0) |
+| ⚡ Snippetlər | ✅ | tez istifadə şablonları — CRUD ayarlar səhifəsində (v1.2.0) |
+| 🔔 Cavab hazırdır | ✅ | tab arxa planda olanda bildiriş (v1.2.0) |
+| 🚪 Popap bağlayıcı | ✅ | "peak hours" tipli popaplar bağlanılır — açar sözlər redaktə olunur (v1.2.0) |
+| 🎯 Ardıcıl retry | ✅ | eyni anda yalnız bir mesaj yenidən göndərilir (v1.2.0) |
+| 🛡️ Dublikat qorunması | ✅ | retry-dan əvvəl server tarixçəsi yoxlanılır (v1.2.0) |
 
 ## Testlər
 
 | Suit | Nəticə | Əhatə |
 |---|---|---|
-| Unit (Node vm) | **30/30 ✔** | təsnifat qaydaları, backoff riyaziyyatı, **imza cross-implementation** (crypto.subtle ↔ node:crypto) |
-| Chrome E2E (Playwright + xvfb) | **6/6 ✔** | busy→retry (attachment qorundu, imza yeniləndi, persist, avto-reload), 429+Retry-After, 400 fatal, axın kəsintisi, dedup, ləğv |
-| Firefox E2E (Marionette) | **4/4 ✔** | inject (page world), busy→retry, imza, persist, avto-reload |
-| addons-linter | **0 error / 0 warning** | AMO qaydalarına uyğun |
+| Unit (Node vm) | **58/58 ✔** | təsnifat, backoff, imza cross-implementation, preview prioritetləri, **popap qərarları, markdown ixracı, draft köməkçiləri** |
+| Chrome E2E (Playwright + xvfb) | **21 ssenari / 41 yoxlama ✔** | busy→retry (attachment, imza, persist, avto-reload), 429, 400 fatal, axın kəsintisi, dedup, ləğv, preview (3), ayarlar (4), **qaralama (3), snippet (2), ixrac, popap (3), ardıcıl retry, dublikat (2), pauza (2), statistika, ⧉ kopyala (2), bildiriş** |
+| Firefox E2E (Marionette) | **9 yoxlama ✔** | inject (page world), busy→retry, imza, persist, avto-reload, preview (2), **popap bağlayıcı, qaralama bərpası** |
+| addons-linter | **0 error / 0 warning / 0 notice** | AMO qaydalarına uyğun |
 
 Mock server (`test/mock/`) real protokolu təkrarlayır: imza yoxlaması müstəqil
 Node crypto implementasiyası ilə, `global_limit` SSE xətası, multipart upload, persist.
@@ -99,8 +110,8 @@ Node crypto implementasiyası ilə, `global_limit` SSE xətası, multipart uploa
 ```bash
 python3 build.py          # prod → dist/chrome + dist/firefox + dist/zips/*.zip
 python3 build.py --test   # E2E üçün (localhost, sürətli backoff)
-npm run unit              # 30 unit test
-npm run e2e:chrome        # xvfb altında Chrome E2E
+npm run unit              # 58 unit test
+npm run e2e:chrome        # xvfb altında Chrome E2E (21 ssenari)
 python3 test/e2e/firefox_spec.py   # Marionette Firefox E2E
 npx addons-linter dist/firefox     # AMO linteri
 ```
@@ -112,11 +123,16 @@ src/
   core/classifier.js   — xəta təsnifatı (hər world + Node vm)
   core/backoff.js      — eksponensial gecikmə
   core/sign.js         — X-Signature alqoritmi (HMAC-SHA256 ×2)
-  inject.js            — MAIN world: fetch/XHR yaxalama + SSE skan + retry + persist
-  content.js           — ISOLATED: vəziyyət maşını, backoff planlayıcı, pill, storage
+  core/preview.js      — PREVIEW GUARD: avto-açılışın bloklanması (v1.1.0)
+  core/popupcloser.js  — POPAP BAĞLAYICI: "peak hours" tipli popaplar (v1.2.0)
+  core/drafts.js       — QARALAMA köməkçiləri (v1.2.0)
+  core/mdexport.js     — Markdown İXRACI (v1.2.0)
+  inject.js            — MAIN world: fetch/XHR yaxalama + SSE skan + retry + persist + dublikat yoxlaması + ixrac GET
+  content.js           — ISOLATED: vəziyyət maşını, ardıcıl retry, pauza, pill, draft, snippet, statistika, storage
   background.js        — badge, bildirişlər, canlı tab
   ff-bootstrap.js      — Firefox: inject.bundle.js script-teqi ilə (WAR)
-  popup/               — vəziyyət + parametrlər + şəbəkə jurnalı
+  popup/               — vəziyyət + parametrlər + alətlər (ixrac/pauza) + şəbəkə jurnalı
+  options/             — AYARLAR SƏHİFƏSİ: preview, qaralama, snippet CRUD, popap açar sözləri, statistika, backup
   pill.css, welcome.html, manifest.chrome.json (MV3), manifest.firefox.json (MV2)
 test/
   unit/ mock/ e2e/     — yuxarıdakı cədvəldə

@@ -22,6 +22,68 @@
   let turnCount = 0;
   let sending = false;
 
+  /* ---------- preview modalı (z.ai kimi) ----------
+     window.__mockAutoPreview         → uğurlu cavabdan sonra ÖZ-ÖZÜNƏ açılır
+     window.__mockAutoPreviewOnAttach → fayl əlavə ediləndə ÖZ-ÖZÜNƏ açılır
+     window.__mockPreview             → test üçün vəziyyət */
+  const previewModal = $('previewModal');
+  window.__mockPreview = { opens: 0, open: false, openedBy: null, closedBy: null };
+  function openPreview(by) {
+    previewModal.classList.add('open');
+    window.__mockPreview.opens += 1;
+    window.__mockPreview.open = true;
+    window.__mockPreview.openedBy = by;
+    window.__mockPreview.closedBy = null;
+  }
+  function closePreview(by) {
+    previewModal.classList.remove('open');
+    window.__mockPreview.open = false;
+    window.__mockPreview.closedBy = by;
+  }
+  $('previewClose').addEventListener('click', (e) => { e.stopPropagation(); closePreview('button'); });
+  previewModal.addEventListener('click', (e) => { if (e.target === previewModal) closePreview('backdrop'); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && previewModal.classList.contains('open')) closePreview('escape');
+  });
+
+  /* ---------- v1.2.0: peak hours popapı + parol dialoqu ----------
+     window.__mockPeakOpen() → saytın özü kimi (kliksiz) popapı açır
+     window.__modalVisible(id) → görünənliyi yoxlayır (forceHide daxil) */
+  const peakModal = $('peakModal');
+  const authModal = $('authModal');
+  window.__mockPeak = { opens: 0, open: false, closedBy: null };
+  window.__mockPeakOpen = function () {
+    peakModal.classList.add('open');
+    window.__mockPeak.opens += 1;
+    window.__mockPeak.open = true;
+    window.__mockPeak.closedBy = null;
+  };
+  $('peakLater').addEventListener('click', (e) => {
+    e.stopPropagation();
+    peakModal.classList.remove('open');
+    window.__mockPeak.open = false;
+    window.__mockPeak.closedBy = 'later';
+  });
+  peakModal.addEventListener('click', (e) => {
+    if (e.target === peakModal) {
+      peakModal.classList.remove('open');
+      window.__mockPeak.open = false;
+      window.__mockPeak.closedBy = 'backdrop';
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && peakModal.classList.contains('open')) {
+      peakModal.classList.remove('open');
+      window.__mockPeak.open = false;
+      window.__mockPeak.closedBy = 'escape';
+    }
+  });
+  window.__mockAuthOpen = function () { authModal.classList.add('open'); };
+  window.__modalVisible = function (id) {
+    const m = document.getElementById(id);
+    return !!m && m.classList.contains('open') && getComputedStyle(m).display !== 'none';
+  };
+
   const enc = new TextEncoder();
   function formEncode(v) {
     v = String(v);
@@ -57,6 +119,8 @@
       const c = document.createElement('span');
       c.className = 'chip';
       c.textContent = '📎 ' + a.name + (a.kind === 'image' ? ' (şəkil)' : ' (fayl)');
+      c.title = 'Preview aç (istifadəçi kliki)';
+      c.addEventListener('click', () => openPreview('user'));
       chipsEl.appendChild(c);
     });
   }
@@ -118,6 +182,9 @@
       } catch (e) { /* ignore */ }
     }
     fileInput.value = '';
+    if (window.__mockAutoPreviewOnAttach) {
+      setTimeout(() => { if (window.__mockAutoPreviewOnAttach) openPreview('auto-attach'); }, 120);
+    }
   });
   $('attach').addEventListener('click', () => fileInput.click());
 
@@ -313,6 +380,10 @@
       attachments = [];
       renderChips();
       await persistChat(assistId, userMsgId, text);
+      // z.ai kimi: generasiya bitəndə preview ÖZ-ÖZÜNƏ açılır
+      if (window.__mockAutoPreview) {
+        setTimeout(() => { if (window.__mockAutoPreview) openPreview('auto'); }, 120);
+      }
     } catch (e) {
       if (bubble && bubble.parentNode) bubble.remove();
       failSend('Network error');
@@ -332,5 +403,7 @@
   });
 
   window.__mockApp = { sent: 0, lastText: '', attachments: 0 };
+  window.__mockAutoPreview = false;
+  window.__mockAutoPreviewOnAttach = false;
   loadHistory();
 })();

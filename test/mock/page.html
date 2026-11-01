@@ -24,6 +24,45 @@
   #send:disabled { background: #555; }
   #fileInput { display: none; }
   .hint { color: #747474; font-size: 11px; padding: 0 16px 70px; }
+  .chip { cursor: pointer; }
+
+  /* preview modalı (z.ai kimi: generasiya bitəndə ÖZ-ÖZÜNƏ açılır) */
+  #previewModal {
+    position: fixed; inset: 0; z-index: 5000; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.65);
+  }
+  #previewModal.open { display: flex; }
+  #previewModal .modal-box {
+    background: #202020; border: 1px solid #ffffff22; border-radius: 14px;
+    padding: 18px; max-width: 440px; position: relative; text-align: center;
+  }
+  #previewModal .modal-title { font-size: 13px; color: #c9c9d6; margin-bottom: 10px; }
+  #previewModal img { max-width: 380px; border-radius: 8px; display: block; }
+  #previewClose {
+    position: absolute; top: 8px; right: 8px; background: #2b2b2b; color: #f8f8f8;
+    border-radius: 50%; width: 30px; height: 30px; border: none; cursor: pointer;
+  }
+
+  /* v1.2.0 test modalları — peak hours popapı və giriş (parol) dialoqu */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 5000; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.65);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-overlay .modal-box {
+    background: #202020; border: 1px solid #ffffff22; border-radius: 14px;
+    padding: 18px; max-width: 440px; position: relative; text-align: center;
+  }
+  .modal-overlay .modal-title { font-size: 14px; color: #e8e8f0; margin-bottom: 8px; font-weight: 600; }
+  .modal-overlay p { color: #9a9aa8; font-size: 13px; margin: 0 0 14px; }
+  .modal-overlay button {
+    background: #2b2b2b; color: #f8f8f8; border: 1px solid #ffffff22;
+    border-radius: 9px; padding: 8px 16px; font-size: 13px; cursor: pointer; margin: 0 4px;
+  }
+  #authModal input {
+    background: #262626; color: #f8f8f8; border: 1px solid #ffffff22;
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; width: 220px; display: block; margin: 0 auto 14px;
+  }
 </style>
 </head>
 <body>
@@ -38,6 +77,35 @@
       <input id="fileInput" type="file" multiple>
     </div>
   </div>
+
+  <div id="previewModal" class="modal-overlay preview-modal" role="dialog" aria-modal="true" aria-label="Fayl preview">
+    <div class="modal-box">
+      <button id="previewClose" type="button" aria-label="Close">✕</button>
+      <div class="modal-title">📄 Yaradılan faylın preview-i</div>
+      <img alt="preview" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzODAiIGhlaWdodD0iMjQwIj48cmVjdCB3aWR0aD0iMzgwIiBoZWlnaHQ9IjI0MCIgZmlsbD0iIzQwOTlmZiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjIwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPm1vY2sgZmlsZSBwcmV2aWV3PC90ZXh0Pjwvc3ZnPg==">
+    </div>
+  </div>
+
+  <!-- v1.2.0: z.ai-in "peak hours" popapı (özlüyündən açılır) -->
+  <div id="peakModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Pik saatlar xəbərdarlığı">
+    <div class="modal-box">
+      <div class="modal-title">⚠️ Currently in peak hours</div>
+      <p>Traffic is high right now — answers may be slower than usual.</p>
+      <button id="peakLater" type="button">Later</button>
+      <button id="peakUpgrade" type="button">Upgrade</button>
+    </div>
+  </div>
+
+  <!-- v1.2.0: parol dialoqu — heç vaxt bağlanmamalıdır -->
+  <div id="authModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Daxil ol">
+    <div class="modal-box">
+      <div class="modal-title">Sign in required</div>
+      <p>Currently in peak hours — please sign in to continue.</p>
+      <input type="password" placeholder="Şifrə" autocomplete="off">
+      <button type="submit">Daxil ol</button>
+    </div>
+  </div>
+
   <script src="/app.js"></script>
 </body>
 </html>
