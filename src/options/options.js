@@ -1,4 +1,4 @@
-/* Z.ai Auto-Resend — Ayarlar səhifəsi (options.js).
+/* better z.ai — Ayarlar səhifəsi (options.js).
    Dəyişikliklər avtomatik yadda saxlanılır (debounce) və mövcud parametrlərlə
    BİRLƏŞDİRİLİR — formada olmayan açarlar (jitter, retryOnHttpError, …) itmir. */
 (function () {
@@ -17,13 +17,12 @@
     sNotify: $('sNotify'), sNotifyDone: $('sNotifyDone'),
     sSerial: $('sSerial'), sDupGuard: $('sDupGuard'), sDomFallback: $('sDomFallback'),
     sClosePopups: $('sClosePopups'), sPopupPatterns: $('sPopupPatterns'),
-    /* v1.3.0 */
     sAdaptive: $('sAdaptive'), sNotifySound: $('sNotifySound'),
     sWordCounter: $('sWordCounter'), sBackupMaxChats: $('sBackupMaxChats'),
     sShortcuts: $('sShortcuts'),
-    statGrid: $('statGrid'), btnResetStats: $('btnResetStats'),
     btnExportCfg: $('btnExportCfg'), fileImportCfg: $('fileImportCfg'), impNote: $('impNote'),
-    btnReset: $('btnReset'), savedNote: $('savedNote'), linkWelcome: $('linkWelcome')
+    btnDiag: $('btnDiag'),
+    btnReset: $('btnReset'), savedNote: $('savedNote')
   };
 
   var saveTimer = null;
@@ -91,7 +90,6 @@
     els.sSerial.checked = s.serialRetries !== false;
     els.sDupGuard.checked = s.dupGuard !== false;
     els.sDomFallback.checked = !!s.domFallback;
-    /* v1.3.0 */
     els.sAdaptive.checked = s.adaptiveBackoff !== false;
     els.sNotifySound.checked = !!s.notifySound;
     els.sWordCounter.checked = s.wordCounter !== false;
@@ -123,7 +121,6 @@
       serialRetries: els.sSerial.checked,
       dupGuard: els.sDupGuard.checked,
       domFallback: els.sDomFallback.checked,
-      /* v1.3.0 */
       adaptiveBackoff: els.sAdaptive.checked,
       notifySound: els.sNotifySound.checked,
       wordCounter: els.sWordCounter.checked,
@@ -175,58 +172,17 @@
     onChange();
   });
 
-  /* ---------- statistika ---------- */
-
-  var STAT_ITEMS = [
-    ['captured', 'Tutulan mesaj'],
-    ['retryOk', 'Avtomatik xilas olunan'],
-    ['dupAvoided', 'Dublikatı önlənən'],
-    ['retryFinalFail', 'Cəhdləri bitən'],
-    ['fatal', 'Fatal xəta'],
-    ['previewBlocked', 'Bloklanan preview'],
-    ['popupsClosed', 'Bağlanan popap'],
-    ['draftsRestored', 'Bərpa olunan qaralama'],
-    ['snippetsInserted', 'Yerləşən snippet'],
-    ['exports', 'İxrac olunan söhbət'],
-    ['backups', 'Tam backup'],
-    ['shortcutActions', 'Qısayol istifadəsi']
-  ];
-
-  function renderStats() {
-    chrome.storage.local.get(['stats'], function (got) {
-      var st = (got && got.stats) || {};
-      els.statGrid.textContent = '';
-      STAT_ITEMS.forEach(function (m) {
-        var d = document.createElement('div');
-        d.className = 'stat';
-        d.innerHTML = '<b></b><span></span>';
-        d.querySelector('b').textContent = String(st[m[0]] || 0);
-        d.querySelector('span').textContent = m[1];
-        els.statGrid.appendChild(d);
-      });
-    });
-  }
-
-  els.btnResetStats.addEventListener('click', function () {
-    var zeros = {};
-    STAT_ITEMS.forEach(function (m) { zeros[m[0]] = 0; });
-    chrome.storage.local.set({ stats: zeros }, function () {
-      renderStats();
-      flashSaved();
-    });
-  });
-
   /* ---------- ayarların ixracı / idxalı ---------- */
 
   els.btnExportCfg.addEventListener('click', function () {
     chrome.storage.local.get(['settings'], function (got) {
       var cur = (got && got.settings) || {};
       var merged = Object.assign({}, DEFAULTS, cur);
-      var blob = new Blob([JSON.stringify({ zaiAutoresendSettings: true, version: '1.3.0', settings: merged }, null, 2)],
+      var blob = new Blob([JSON.stringify({ betterZaiSettings: true, settings: merged }, null, 2)],
         { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'zai-ayarlar-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.download = 'better-zai-ayarlar-' + new Date().toISOString().slice(0, 10) + '.json';
       document.body.appendChild(a);
       a.click();
       setTimeout(function () {
@@ -264,6 +220,40 @@
     els.fileImportCfg.value = '';
   });
 
+  /* ---------- diaqnostika (xəta hesabatı üçün) ---------- */
+
+  els.btnDiag.addEventListener('click', function () {
+    chrome.storage.local.get(['settings', 'stats', 'records', 'log', 'paused', 'lastExport', 'lastBackup'], function (got) {
+      var records = (got && got.records) || {};
+      var byState = {};
+      Object.keys(records).forEach(function (id) {
+        var st = (records[id] && records[id].state) || '?';
+        byState[st] = (byState[st] || 0) + 1;
+      });
+      var diag = {
+        betterZaiDiag: true,
+        generatedAt: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        paused: !!(got && got.paused),
+        settings: (got && got.settings) || {},
+        stats: (got && got.stats) || {},
+        recordsSummary: { total: Object.keys(records).length, byState: byState },
+        lastExport: (got && got.lastExport) || null,
+        lastBackup: (got && got.lastBackup) || null,
+        logTail: ((got && got.log) || []).slice(-40)
+      };
+      var blob = new Blob([JSON.stringify(diag, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'better-zai-diaqnostika-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () {
+        try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) { /* ignore */ }
+      }, 3000);
+    });
+  });
+
   /* ---------- reset + başlanğıc ---------- */
 
   els.btnReset.addEventListener('click', function () {
@@ -277,10 +267,7 @@
     });
   });
 
-  try { els.linkWelcome.href = chrome.runtime.getURL('welcome.html'); } catch (e) { /* ignore */ }
-
   chrome.storage.local.get(['settings'], function (got) {
     fillForm((got && got.settings) || {});
   });
-  renderStats();
 })();

@@ -1,28 +1,19 @@
-/* Z.ai Auto-Resend — popup skripti */
+/* better z.ai — popup skripti (təmiz: vəziyyət + tez ayarlar + alətlər) */
 (function () {
   'use strict';
 
-  var ZAI_TABS = ['https://chat.z.ai/*', 'http://localhost:8907/*'];
-
   var $ = function (id) { return document.getElementById(id); };
   var els = {
-    conn: $('conn'), recList: $('recList'), logBox: $('logBox'),
-    btnSave: $('btnSave'), btnClearLog: $('btnClearLog'), btnOptions: $('btnOptions'),
-    btnExport: $('btnExport'), btnBackup: $('btnBackup'), btnDiag: $('btnDiag'), btnPause: $('btnPause'),
-    statsLine: $('statsLine'),
+    conn: $('conn'), recList: $('recList'),
+    btnOptions: $('btnOptions'),
+    btnExport: $('btnExport'), btnBackup: $('btnBackup'), btnPause: $('btnPause'),
+    pauseLabel: $('pauseLabel'),
     sBlockPreview: $('sBlockPreview'), sClosePopups: $('sClosePopups'),
-    sDraftGuard: $('sDraftGuard'), sSnippets: $('sSnippets'),
-    sMaxRetries: $('sMaxRetries'), sInitialDelay: $('sInitialDelay'),
-    sFactor: $('sFactor'), sMaxDelay: $('sMaxDelay'),
-    sResign: $('sResign'), sPersist: $('sPersist'), sAutoReload: $('sAutoReload'),
-    sNotify: $('sNotify'), sNotifyDone: $('sNotifyDone'),
-    sSerial: $('sSerial'), sDupGuard: $('sDupGuard'), sDomFallback: $('sDomFallback'),
-    /* v1.3.0 */
-    sAdaptive: $('sAdaptive'), sShortcuts: $('sShortcuts'),
-    sWordCounter: $('sWordCounter'), sNotifySound: $('sNotifySound')
+    sDraftGuard: $('sDraftGuard'), sSnippets: $('sSnippets')
   };
 
   var paused = false;
+  var saveTimer = null;
 
   var stateLabels = {
     monitoring: ['Gözlənilir', ''],
@@ -37,17 +28,7 @@
 
   function attText(list) {
     if (!list || !list.length) return '';
-    var n = list.length;
-    var kinds = list.map(function (a) { return a.type; }).join(',');
-    return '📎 ' + n + ' əlavə (' + kinds + ')';
-  }
-
-  function findZaiTab(cb) {
-    chrome.tabs.query({ url: ZAI_TABS }, function (tabs) {
-      if (!tabs || !tabs.length) return cb(null);
-      tabs.sort(function (a, b) { return (b.lastAccessed || 0) - (a.lastAccessed || 0); });
-      cb(tabs[0]);
-    });
+    return '📎 ' + list.length + ' əlavə (' + list.map(function (a) { return a.type; }).join(',') + ')';
   }
 
   function askContent(cb) {
@@ -110,7 +91,6 @@
         b1.setAttribute('data-act', 'retry');
         b1.setAttribute('data-id', r.id);
         act.appendChild(b1);
-        // v1.2.0: uğursuz mesajın TAM mətnini kopyala
         if (r.state === 'failed_fatal' || r.state === 'failed_final' || r.state === 'await_user') {
           var b0 = document.createElement('button');
           b0.textContent = '⧉ Mətni kopyala';
@@ -161,65 +141,40 @@
     });
   }
 
-  function updatePauseBtn() {
-    els.btnPause.textContent = paused ? '▶ Retry-ləri davam etdir' : '⏸ Retry-ləri dayandır';
+  function recordsFromStorage(got) {
+    var recs = (got && got.records) || {};
+    return Object.keys(recs).map(function (id) { return recs[id]; })
+      .sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); })
+      .map(function (r) {
+        return {
+          id: r.id, state: r.state, nextAt: r.nextAt || 0,
+          promptPreview: r.promptPreview, attachments: r.attachments || [],
+          lastUserText: r.lastUserText || '', lastMsg: r.lastMsg || ''
+        };
+      });
   }
 
-  function updateStats() {
-    try {
-      chrome.storage.local.get(['stats'], function (got) {
-        var st = (got && got.stats) || {};
-        els.statsLine.textContent =
-          '🔁 xilas: ' + (st.retryOk || 0) +
-          ' · 🛡️ dublikat önlənən: ' + (st.dupAvoided || 0) +
-          ' · 🔒 preview: ' + (st.previewBlocked || 0) +
-          ' · 🚪 popap: ' + (st.popupsClosed || 0) +
-          ' · 📝 qaralama: ' + (st.draftsRestored || 0) +
-          ' · ⚡ snippet: ' + (st.snippetsInserted || 0) +
-          ' · ⤓ ixrac: ' + (st.exports || 0);
-      });
-    } catch (e) { /* ignore */ }
+  function updatePauseBtn() {
+    els.pauseLabel.textContent = paused ? 'Retry-ləri davam etdir' : 'Retry-ləri dayandır';
   }
 
   function refresh() {
     askContent(function (resp, tab) {
       if (resp && resp.ok) {
-        els.conn.textContent = '● chat.z.ai səhifəsi: aktiv';
-        els.conn.className = 'ok';
+        els.conn.textContent = 'z.ai səhifəsi: aktiv';
+        els.conn.className = 'conn ok';
         renderRecords(resp.records);
-        els.logBox.textContent = (resp.log || []).join('\n') || '(jurnal boşdur)';
       } else if (tab) {
-        els.conn.textContent = '● səhifə tapıldı, amma content script cavab vermir — yeniləyin';
-        els.conn.className = 'err';
-        // storage-dan son vəziyyəti göstər
-        chrome.storage.local.get(['records', 'log'], function (got) {
-          var recs = (got && got.records) || {};
-          var list = Object.keys(recs).map(function (id) { return recs[id]; })
-            .sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-          renderRecords(list.map(function (r) {
-            return {
-              id: r.id, state: r.state, nextAt: r.nextAt || 0,
-              promptPreview: r.promptPreview, attachments: r.attachments || [],
-              lastUserText: r.lastUserText || '', lastMsg: r.lastMsg || ''
-            };
-          }));
-          els.logBox.textContent = ((got && got.log) || []).join('\n') || '(jurnal boşdur)';
+        els.conn.textContent = 'səhifə tapıldı, amma cavab vermir — yeniləyin';
+        els.conn.className = 'conn err';
+        chrome.storage.local.get(['records'], function (got) {
+          renderRecords(recordsFromStorage(got));
         });
       } else {
-        els.conn.textContent = '● chat.z.ai açıq deyil — mesaj göndərmək üçün səhifəni açın';
-        els.conn.className = 'err';
-        chrome.storage.local.get(['records', 'log'], function (got) {
-          var recs = (got && got.records) || {};
-          var list = Object.keys(recs).map(function (id) { return recs[id]; })
-            .sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-          renderRecords(list.map(function (r) {
-            return {
-              id: r.id, state: r.state, nextAt: r.nextAt || 0,
-              promptPreview: r.promptPreview, attachments: r.attachments || [],
-              lastUserText: r.lastUserText || '', lastMsg: r.lastMsg || ''
-            };
-          }));
-          els.logBox.textContent = ((got && got.log) || []).join('\n') || '(jurnal boşdur)';
+        els.conn.textContent = 'z.ai açıq deyil — mesaj göndərmək üçün səhifəni açın';
+        els.conn.className = 'conn err';
+        chrome.storage.local.get(['records'], function (got) {
+          renderRecords(recordsFromStorage(got));
         });
       }
     });
@@ -234,63 +189,33 @@
       els.sClosePopups.checked = s.closePopups !== false;
       els.sDraftGuard.checked = s.draftGuard !== false;
       els.sSnippets.checked = s.snippetsEnabled !== false;
-      els.sMaxRetries.value = s.maxRetries != null ? s.maxRetries : 6;
-      els.sInitialDelay.value = s.initialDelayMs != null ? s.initialDelayMs : 5000;
-      els.sFactor.value = s.backoffFactor != null ? s.backoffFactor : 2;
-      els.sMaxDelay.value = s.maxDelayMs != null ? s.maxDelayMs : 120000;
-      els.sResign.checked = s.resign !== false;
-      els.sPersist.checked = s.persistAfterRetry !== false;
-      els.sAutoReload.checked = s.autoReload !== false;
-      els.sNotify.checked = s.notify !== false;
-      els.sNotifyDone.checked = s.notifyDone !== false;
-      els.sSerial.checked = s.serialRetries !== false;
-      els.sDupGuard.checked = s.dupGuard !== false;
-      els.sDomFallback.checked = !!s.domFallback;
-      /* v1.3.0 */
-      els.sAdaptive.checked = s.adaptiveBackoff !== false;
-      els.sShortcuts.checked = s.shortcutsEnabled !== false;
-      els.sWordCounter.checked = s.wordCounter !== false;
-      els.sNotifySound.checked = !!s.notifySound;
       if (cb) cb();
     });
   }
 
-  els.btnSave.addEventListener('click', function () {
-    /* mövcud settings ilə birləşdir — formada olmayan açarlar itmasın */
+  /* tez açarlar — dərhal yadda saxlanır (mövcud ayarlarla birləşir) */
+  function saveQuick() {
     chrome.storage.local.get(['settings'], function (got) {
       var cur = (got && got.settings) || {};
-      var s = Object.assign({}, cur, {
+      var merged = Object.assign({}, cur, {
         blockAutoPreview: els.sBlockPreview.checked,
         closePopups: els.sClosePopups.checked,
         draftGuard: els.sDraftGuard.checked,
-        snippetsEnabled: els.sSnippets.checked,
-        maxRetries: Math.max(1, Math.min(30, Number(els.sMaxRetries.value) || 6)),
-        initialDelayMs: Math.max(300, Number(els.sInitialDelay.value) || 5000),
-        backoffFactor: Math.max(1, Number(els.sFactor.value) || 2),
-        maxDelayMs: Math.max(1000, Number(els.sMaxDelay.value) || 120000),
-        resign: els.sResign.checked,
-        persistAfterRetry: els.sPersist.checked,
-        autoReload: els.sAutoReload.checked,
-        notify: els.sNotify.checked,
-        notifyDone: els.sNotifyDone.checked,
-        serialRetries: els.sSerial.checked,
-        dupGuard: els.sDupGuard.checked,
-        domFallback: els.sDomFallback.checked,
-        /* v1.3.0 */
-        adaptiveBackoff: els.sAdaptive.checked,
-        shortcutsEnabled: els.sShortcuts.checked,
-        wordCounter: els.sWordCounter.checked,
-        notifySound: els.sNotifySound.checked
+        snippetsEnabled: els.sSnippets.checked
       });
-      chrome.storage.local.set({ settings: s }, function () {
-        els.btnSave.textContent = '✓ Yadda saxlandı';
-        setTimeout(function () { els.btnSave.textContent = 'Yadda saxla'; }, 1200);
-        refresh();
-      });
+      chrome.storage.local.set({ settings: merged }, function () { /* ok */ });
     });
-  });
+  }
 
-  /* v1.2.0: qlobal pauza — storage üzərindən (content script dərhal reaksiya verir) */
+  function onQuickChange() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { saveTimer = null; saveQuick(); }, 200);
+  }
+
+  [els.sBlockPreview, els.sClosePopups, els.sDraftGuard, els.sSnippets]
+    .forEach(function (el) { el.addEventListener('change', onQuickChange); });
+
+  /* qlobal pauza — storage üzərindən (content script dərhal reaksiya verir) */
   els.btnPause.addEventListener('click', function () {
     paused = !paused;
     chrome.storage.local.set({ paused: paused }, function () {
@@ -299,40 +224,42 @@
     });
   });
 
-  /* v1.2.0: söhbətin ixracı — content script → MAIN world GET → Markdown */
+  /* söhbətin ixracı — content script → MAIN world GET → Markdown */
   els.btnExport.addEventListener('click', function () {
-    els.btnExport.textContent = '… ixrac olunur';
+    var span = els.btnExport.querySelector('span:not(.dim)');
+    var orig = span.textContent;
+    span.textContent = '… ixrac olunur';
     askContent(function (resp, tab) {
       if (!tab) {
-        els.btnExport.textContent = '✘ səhifə tapılmadı';
-        setTimeout(function () { els.btnExport.textContent = '⤓ Söhbəti ixrac et (.md)'; }, 1500);
+        span.textContent = '✘ səhifə tapılmadı';
+        setTimeout(function () { span.textContent = orig; }, 1500);
         return;
       }
       try {
         chrome.tabs.sendMessage(tab.id, { cmd: 'EXPORT_CHAT' }, function () {
           if (chrome.runtime.lastError) { /* ignore */ }
           setTimeout(function () {
-            els.btnExport.textContent = '✓ İxrac olundu';
-            setTimeout(function () { els.btnExport.textContent = '⤓ Söhbəti ixrac et (.md)'; }, 1500);
+            span.textContent = '✓ İxrac olundu';
+            setTimeout(function () { span.textContent = orig; }, 1500);
             refresh();
           }, 900);
         });
-      } catch (e) {
-        els.btnExport.textContent = '⤓ Söhbəti ixrac et (.md)';
-      }
+      } catch (e) { span.textContent = orig; }
     });
   });
 
-  /* v1.3.0: BÜTÜN söhbətlərin backup-I — content script → MAIN world
+  /* BÜTÜN söhbətlərin backup-ı — content script → MAIN world
      (chat siyahısı + detallar) → .md + .json faylları endirilir */
   els.btnBackup.addEventListener('click', function () {
-    els.btnBackup.textContent = '… backup gedir';
+    var span = els.btnBackup.querySelector('span:not(.dim)');
+    var orig = span.textContent;
+    span.textContent = '… backup gedir';
     els.btnBackup.disabled = true;
     askContent(function (resp, tab) {
       if (!tab) {
-        els.btnBackup.textContent = '✘ səhifə tapılmadı';
+        span.textContent = '✘ səhifə tapılmadı';
         els.btnBackup.disabled = false;
-        setTimeout(function () { els.btnBackup.textContent = '⤓⤓ Tam backup (.md + .json)'; }, 1800);
+        setTimeout(function () { span.textContent = orig; }, 1800);
         return;
       }
       var t0 = Date.now();
@@ -346,55 +273,17 @@
           var lb = g && g.lastBackup;
           if (lb && lb.at > t0 - 2000) {
             clearInterval(iv);
-            els.btnBackup.textContent = '✓ ' + (lb.count || 0) + ' söhbət backup olundu';
+            span.textContent = '✓ ' + (lb.count || 0) + ' söhbət backup olundu';
             els.btnBackup.disabled = false;
-            setTimeout(function () { els.btnBackup.textContent = '⤓⤓ Tam backup (.md + .json)'; }, 2600);
-            updateStats();
+            setTimeout(function () { span.textContent = orig; }, 2600);
           } else if (Date.now() - t0 > 120000) {
             clearInterval(iv);
-            els.btnBackup.textContent = '✘ vaxt bitdi';
+            span.textContent = '✘ vaxt bitdi';
             els.btnBackup.disabled = false;
-            setTimeout(function () { els.btnBackup.textContent = '⤓⤓ Tam backup (.md + .json)'; }, 2200);
+            setTimeout(function () { span.textContent = orig; }, 2200);
           }
         });
       }, 700);
-    });
-  });
-
-  /* v1.3.0: diaqnostika ixracı — xəta hesabatı üçün hər şey bir JSON-da
-     (versiya, parametrlər, statistika, rekord xülasəsi, jurnal) */
-  els.btnDiag.addEventListener('click', function () {
-    chrome.storage.local.get(['settings', 'stats', 'records', 'log', 'paused', 'lastExport', 'lastBackup'], function (got) {
-      var records = (got && got.records) || {};
-      var byState = {};
-      Object.keys(records).forEach(function (id) {
-        var st = (records[id] && records[id].state) || '?';
-        byState[st] = (byState[st] || 0) + 1;
-      });
-      var manifest = {};
-      try { manifest = chrome.runtime.getManifest() || {}; } catch (e) { /* ignore */ }
-      var diag = {
-        zaiDiag: true,
-        generatedAt: new Date().toISOString(),
-        extensionVersion: manifest.version || '?',
-        userAgent: navigator.userAgent,
-        paused: !!(got && got.paused),
-        settings: (got && got.settings) || {},
-        stats: (got && got.stats) || {},
-        recordsSummary: { total: Object.keys(records).length, byState: byState },
-        lastExport: (got && got.lastExport) || null,
-        lastBackup: (got && got.lastBackup) || null,
-        logTail: ((got && got.log) || []).slice(-40)
-      };
-      var blob = new Blob([JSON.stringify(diag, null, 2)], { type: 'application/json' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'zai-diaqnostika-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function () {
-        try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) { /* ignore */ }
-      }, 3000);
     });
   });
 
@@ -407,13 +296,7 @@
     }
   });
 
-  els.btnClearLog.addEventListener('click', function () {
-    chrome.storage.local.set({ log: [] }, function () {
-      els.logBox.textContent = '(təmizləndi)';
-    });
-  });
-
-  /* pauza və statistika dəyişikliklərini canlı izlə */
+  /* pauza dəyişikliyini canlı izlə */
   try {
     chrome.storage.onChanged.addListener(function (ch, area) {
       if (area !== 'local') return;
@@ -422,7 +305,5 @@
   } catch (e) { /* ignore */ }
 
   loadSettings(refresh);
-  updateStats();
   setInterval(refresh, 1000);
-  setInterval(updateStats, 2000);
 })();
