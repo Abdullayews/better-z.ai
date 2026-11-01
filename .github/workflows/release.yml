@@ -34,33 +34,36 @@ jobs:
           sha256sum *.zip > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-      - name: GitHub Release (pre-release, beta)
+      - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" \
-            --prerelease \
             --title "Z.ai Auto-Resend ${GITHUB_REF_NAME}" \
             --notes "$(cat <<'EOF'
-          ## Z.ai Auto-Resend — ${GITHUB_REF_NAME} (beta)
+          ## Z.ai Auto-Resend — ${GITHUB_REF_NAME}
 
           **system is busy** və digər göndərmə xətalarında mesajı attachment-larla
           birlikdə avtomatik yenidən göndərən extension (Chrome + Firefox).
 
+          ### Bu versiyada (v1.3.0 — Sürət və nəzarət paketi)
+          - ⌨️ **Qısayollar**: Alt+R (indi cəhd et), Alt+P (pauza), Alt+E (ixrac)
+          - ⤓⤓ **Tam backup**: bütün söhbətlər bir kliklə .md + .json
+          - 🔤 **Söz sayğacı** — kompozitor yanında canlı "N söz · M simvol"
+          - 🔊 **"Cavab hazırdır" səsi** (Ayarlar-da açılır)
+          - ⏱️ **Adaptiv backoff** — ardıcıl busy-də gözləmələr uzanır (maks ×3)
+          - 🧪 **Diaqnostika ixracı** — xəta hesabatı üçün tam JSON (popup)
+          - Əvvəlki: şəbəkə-səviyyəli capture/replay, X-Signature yenidən imzalama,
+            preview bloku, qaralama mühafizəsi, snippet kitabxanası, popap bağlayıcı,
+            ardıcıl retry, dublikat qorunması, statistika
+
           ### Quraşdırma
           - **Chrome**: zip-i açın → chrome://extensions → Developer mode → Load unpacked → `chrome/`
-          - **Firefox**: zip-i açın → about:debugging → Load Temporary Add-on → `firefox/manifest.json`
+          - **Firefox**: `zai-autoresend-firefox-*.xpi` (və ya zip içindən `manifest.json`)
+            → about:debugging → Load Temporary Add-on
 
-          ### Bu versiyada
-          - Şəbəkə-səviyyəli capture/replay (POST /api/v2/chat/completions)
-          - X-Signature yenidən imzalama (köhnə imzalar üçün)
-          - global_limit / 429+Retry-After / WAF / axın-kəsintisi → avto-retry
-          - 400/401/captcha → fatal bildiriş (avto-retry yoxdur)
-          - Uğurda persist (POST /api/v1/chats/{id}) + avto-yenilə
-          - Popup: vəziyyət, parametrlər, şəbəkə jurnalı; HUD pill; bildirişlər
-
-          Testlər: unit 30/30, Chrome E2E 6/6, Firefox E2E 4/4, addons-linter 0/0.
-          SHA256SUMS.txt faylında imzalar.
+          Testlər: unit 65/65, Chrome E2E 24 ssenari / 56 yoxlama, Firefox E2E 10
+          yoxlama, addons-linter 0/0/0. SHA256SUMS.txt faylında imzalar.
           EOF
           )" \
             dist/zips/*.zip dist/zips/SHA256SUMS.txt

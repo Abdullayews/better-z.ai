@@ -3,6 +3,10 @@
 **chat.z.ai üçün Chrome və Firefox extension-ı** — *"system is busy"* və digər göndərmə
 xətalarında mesajınızı **attachment-larla birlikdə** avtomatik yenidən göndərir.
 
+**v1.3.0 — Sürət və nəzarət paketi:** klaviatura qısayolları (Alt+R/P/E), bütün
+söhbətlərin tam backup-ı (.md + .json), söz sayğacı, "cavab hazırdır" səsi,
+adaptiv backoff və diaqnostika ixracı.
+
 **v1.2.0 — Ağıllı köməkçi paketi:** qaralama mühafizəsi, snippet kitabxanası, söhbətin
 Markdown ixracı, "peak hours" popap bağlayıcısı, "cavab hazırdır" bildirişi, qlobal
 pauza, ardıcıl retry, dublikat qorunması və statistika.
@@ -80,14 +84,19 @@ LEGACY_SPEC (zai_protokol_spec.md — ZaiMobile layihəsindən) əsasadır):
 | 🚪 Popap bağlayıcı | ✅ | "peak hours" tipli popaplar bağlanılır — açar sözlər redaktə olunur (v1.2.0) |
 | 🎯 Ardıcıl retry | ✅ | eyni anda yalnız bir mesaj yenidən göndərilir (v1.2.0) |
 | 🛡️ Dublikat qorunması | ✅ | retry-dan əvvəl server tarixçəsi yoxlanılır (v1.2.0) |
+| ⌨️ Qısayollar | ✅ | **Alt+R** indi cəhd et · **Alt+P** pauza · **Alt+E** ixrac (v1.3.0) |
+| 🔤 Söz sayğacı | ✅ | kompozitor yanında canlı "N söz · M simvol" (v1.3.0) |
+| 🔊 "Cavab hazırdır" səsi | ❌ | bildirişlə yanaşı yumşaq zəng (v1.3.0) |
+| ⏱️ Adaptiv backoff | ✅ | ardıcıl busy-də gözləmələr uzanır (maks ×3) (v1.3.0) |
+| ⤓⤓ Tam backup | — | popup-dan: bütün söhbətlər .md + .json, maks 50 (dəyişilə bilər) (v1.3.0) |
 
 ## Testlər
 
 | Suit | Nəticə | Əhatə |
 |---|---|---|
-| Unit (Node vm) | **58/58 ✔** | təsnifat, backoff, imza cross-implementation, preview prioritetləri, **popap qərarları, markdown ixracı, draft köməkçiləri** |
-| Chrome E2E (Playwright + xvfb) | **21 ssenari / 41 yoxlama ✔** | busy→retry (attachment, imza, persist, avto-reload), 429, 400 fatal, axın kəsintisi, dedup, ləğv, preview (3), ayarlar (4), **qaralama (3), snippet (2), ixrac, popap (3), ardıcıl retry, dublikat (2), pauza (2), statistika, ⧉ kopyala (2), bildiriş** |
-| Firefox E2E (Marionette) | **9 yoxlama ✔** | inject (page world), busy→retry, imza, persist, avto-reload, preview (2), **popap bağlayıcı, qaralama bərpası** |
+| Unit (Node vm) | **65/65 ✔** | təsnifat, backoff + **congestion amili**, imza cross-implementation, preview prioritetləri, popap qərarları, markdown ixracı, draft köməkçiləri, **söz sayğacı** |
+| Chrome E2E (Playwright + xvfb) | **24 ssenari / 56 yoxlama ✔** | busy→retry (attachment, imza, persist, avto-reload), 429, 400 fatal, axın kəsintisi, dedup, ləğv, preview (3), ayarlar (4), qaralama (3), snippet (2), ixrac, popap (3), ardıcıl retry, dublikat (2), pauza (2), statistika, ⧉ kopyala (2), bildiriş, **söz sayğacı (3), qısayollar (6), tam backup (4)** |
+| Firefox E2E (Marionette) | **10 yoxlama ✔** | inject (page world), busy→retry, imza, persist, avto-reload, preview (2), popap bağlayıcı, qaralama bərpası |
 | addons-linter | **0 error / 0 warning / 0 notice** | AMO qaydalarına uyğun |
 
 Mock server (`test/mock/`) real protokolu təkrarlayır: imza yoxlaması müstəqil
@@ -110,8 +119,8 @@ Node crypto implementasiyası ilə, `global_limit` SSE xətası, multipart uploa
 ```bash
 python3 build.py          # prod → dist/chrome + dist/firefox + dist/zips/*.zip
 python3 build.py --test   # E2E üçün (localhost, sürətli backoff)
-npm run unit              # 58 unit test
-npm run e2e:chrome        # xvfb altında Chrome E2E (21 ssenari)
+npm run unit              # 65 unit test
+npm run e2e:chrome        # xvfb altında Chrome E2E (24 ssenari)
 python3 test/e2e/firefox_spec.py   # Marionette Firefox E2E
 npx addons-linter dist/firefox     # AMO linteri
 ```
@@ -129,7 +138,7 @@ src/
   core/mdexport.js     — Markdown İXRACI (v1.2.0)
   inject.js            — MAIN world: fetch/XHR yaxalama + SSE skan + retry + persist + dublikat yoxlaması + ixrac GET
   content.js           — ISOLATED: vəziyyət maşını, ardıcıl retry, pauza, pill, draft, snippet, statistika, storage
-  background.js        — badge, bildirişlər, canlı tab
+  background.js        — badge, bildirişlər, canlı tab, qısayollar (commands, v1.3.0)
   ff-bootstrap.js      — Firefox: inject.bundle.js script-teqi ilə (WAR)
   popup/               — vəziyyət + parametrlər + alətlər (ixrac/pauza) + şəbəkə jurnalı
   options/             — AYARLAR SƏHİFƏSİ: preview, qaralama, snippet CRUD, popap açar sözləri, statistika, backup
