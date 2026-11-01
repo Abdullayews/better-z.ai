@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..', '..');
 const EXT = path.join(ROOT, 'dist', 'chrome');
-const OUT = '/home/z/my-project/download/zai-autoresend';
+const OUT = '/home/z/my-project/download/better-z.ai';
 const BASE = 'http://localhost:8907';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -47,15 +47,15 @@ try {
   await page.waitForFunction(() => window.__zaiExtInject === true, null, { timeout: 8000 });
   await sleep(600);
 
-  // v1.3.0: SÖZ SAYĞACI — kompozitor dolu, sağ altda sayğaç çipi görünür
+  // SÖZ SAYĞACI — kompozitor dolu, sağ altda sayğaç çipi görünür
   await page.fill('#composer', 'Bu mesajda söz sayğacı görünür və canlı sayılır');
   await page.waitForFunction(() => {
     const el = document.querySelector('.zai-ext-counter');
     return el && el.style.display !== 'none' && /söz/.test(el.textContent || '');
   }, null, { timeout: 8000 });
   await sleep(400);
-  await page.screenshot({ path: path.join(OUT, 'soz-saygaci-v1.3.0.png') });
-  console.log('✔ soz-saygaci-v1.3.0.png');
+  await page.screenshot({ path: path.join(OUT, 'soz-saygaci.png') });
+  console.log('✔ soz-saygaci.png');
 
   // canlı vəziyyət üçün bir mesaj göndər (uğurlu) — popup vəziyyəti dolu olsun
   await page.click('#send');
@@ -69,15 +69,15 @@ try {
   await opts.goto('chrome-extension://' + id + '/options/options.html');
   await opts.waitForSelector('#sWordCounter');
   await opts.waitForTimeout(700);
-  await opts.screenshot({ path: path.join(OUT, 'ayarlar-sehifesi-v1.3.0.png'), fullPage: true });
-  console.log('✔ ayarlar-sehifesi-v1.3.0.png');
+  await opts.screenshot({ path: path.join(OUT, 'ayarlar-sehifesi.png'), fullPage: true });
+  console.log('✔ ayarlar-sehifesi.png');
 
   const pop = await ctx.newPage();
   await pop.setViewportSize({ width: 384, height: 720 });
   await pop.goto('chrome-extension://' + id + '/popup/popup.html');
   await pop.waitForTimeout(2000);
-  await pop.screenshot({ path: path.join(OUT, 'popup-v1.3.0.png'), fullPage: true });
-  console.log('✔ popup-v1.3.0.png');
+  await pop.screenshot({ path: path.join(OUT, 'popup.png'), fullPage: true });
+  console.log('✔ popup.png');
 
   if (server) server.kill();
 } finally {

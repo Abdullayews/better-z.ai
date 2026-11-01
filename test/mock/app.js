@@ -46,7 +46,7 @@
     if (e.key === 'Escape' && previewModal.classList.contains('open')) closePreview('escape');
   });
 
-  /* ---------- v1.2.0: peak hours popapı + parol dialoqu ----------
+  /* ---------- peak hours popapı + parol dialoqu ----------
      window.__mockPeakOpen() → saytın özü kimi (kliksiz) popapı açır
      window.__modalVisible(id) → görünənliyi yoxlayır (forceHide daxil) */
   const peakModal = $('peakModal');
