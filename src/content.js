@@ -333,7 +333,7 @@
 
   /* ---------- state transitions ---------- */
 
-  function scheduleRetry(rec, reason, retryAfterMs) {
+  function scheduleRetry(rec, reason, retryAfterMs, d) {
     rec.attempt = (rec.attempt || 0) + 1;
     rec.ts = Date.now();
     if (rec.attempt > (settings.maxRetries || 6)) {
@@ -346,23 +346,35 @@
       refreshPill();
       return;
     }
-    var delay = C.computeDelay(rec.attempt, settings);
-    // adaptive backoff — delays grow on consecutive busy results (max ×3);
-    // the counter resets if no new busy arrives within a 5-minute "cooldown".
-    if (settings.adaptiveBackoff !== false && congestion > 0) {
-      if (Date.now() - lastCongestionAt > 300000) {
-        congestion = 0;
-      } else {
-        delay = Math.round(delay * C.congestionMultiplier(congestion));
+    var delay;
+    if (d && d.reason === 'captcha') {
+      // captcha required → fast retry: fixed 1 s wait instead of the backoff
+      // (a server Retry-After header, if present, still takes priority)
+      delay = C.applyRetryAfter(d.fastDelayMs || 1000, retryAfterMs);
+    } else {
+      delay = C.computeDelay(rec.attempt, settings);
+      // adaptive backoff — delays grow on consecutive busy results (max ×3);
+      // the counter resets if no new busy arrives within a 5-minute "cooldown".
+      if (settings.adaptiveBackoff !== false && congestion > 0) {
+        if (Date.now() - lastCongestionAt > 300000) {
+          congestion = 0;
+        } else {
+          delay = Math.round(delay * C.congestionMultiplier(congestion));
+        }
       }
+      delay = C.applyRetryAfter(delay, retryAfterMs);
     }
-    delay = C.applyRetryAfter(delay, retryAfterMs);
     rec.nextAt = Date.now() + delay;
     rec.state = 'pending_retry';
     rec.lastMsg = reason || '';
     if (rec.attempt === 1 && !rec.notifiedStart) {
       rec.notifiedStart = true;
-      notify('better z.ai', 'Send failed (' + C.firstLine(reason || 'error', 60) + '). Automatic retry ' + rec.attempt + '/' + settings.maxRetries + '…');
+      if (d && d.reason === 'captcha') {
+        notify('better z.ai', 'Captcha required — automatic retry ' + rec.attempt + '/' + settings.maxRetries +
+          ' in ' + Math.max(1, Math.round(delay / 1000)) + ' s (attachments preserved)…');
+      } else {
+        notify('better z.ai', 'Send failed (' + C.firstLine(reason || 'error', 60) + '). Automatic retry ' + rec.attempt + '/' + settings.maxRetries + '…');
+      }
     }
     updateBadge();
     save();
@@ -405,10 +417,13 @@
       return;
     }
     if (d.outcome === 'retry') {
-      // congestion counter — every failed outcome lengthens delays a bit
-      congestion = Math.min(9, congestion + 1);
-      lastCongestionAt = Date.now();
-      scheduleRetry(rec, d.msg || d.reason, d.retryAfterMs);
+      // congestion counter — every failed outcome lengthens delays a bit.
+      // captcha results are exempt: a verification challenge is not overload.
+      if (d.reason !== 'captcha') {
+        congestion = Math.min(9, congestion + 1);
+        lastCongestionAt = Date.now();
+      }
+      scheduleRetry(rec, d.msg || d.reason, d.retryAfterMs, d);
       return;
     }
     if (d.outcome === 'aborted') {
@@ -510,7 +525,7 @@
       var dk = DRAFTS.key(location.pathname);
       if (drafts[dk]) { delete drafts[dk]; save(); }
     }
-    pushLog('tutuldu: ' + rec.pathname + (rec.attachments.length ? ' (' + attLabel(rec.attachments.length) + ')' : '')
+    pushLog('captured: ' + rec.pathname + (rec.attachments.length ? ' (' + attLabel(rec.attachments.length) + ')' : '')
       + (rec.canReplay ? '' : ' [not replayable]'));
     if (typeof rec.body === 'string' && rec.body) {
       sha256Hex(rec.body).then(function (h) {
@@ -1043,7 +1058,7 @@
     }
     var dt = new Date();
     var pad = function (n) { return String(n).padStart(2, '0'); };
-    var name = 'zai-sohbet-' + String(d.chatId || 'chat').slice(0, 24) + '-' +
+    var name = 'zai-chat-' + String(d.chatId || 'chat').slice(0, 24) + '-' +
       dt.getFullYear() + pad(dt.getMonth() + 1) + pad(dt.getDate()) + '-' +
       pad(dt.getHours()) + pad(dt.getMinutes()) + '.md';
     try {
@@ -1172,11 +1187,11 @@
     if (d.t === 'EXPORTED') { onExported(d); return; }
     if (d.t === 'BACKUP_PROGRESS') { onBackupProgress(d); return; }
     if (d.t === 'BACKUP_DONE') { onBackupDone(d); return; }
-    if (d.t === 'PONG') { pageOk = true; pushLog('inject cavab verdi'); return; }
+    if (d.t === 'PONG') { pageOk = true; pushLog('inject replied'); return; }
     if (d.t === 'LOG' && d.line) { pushLog(d.line); return; }
   });
 
-  /* ---------- popup-dan mesajlar ---------- */
+  /* ---------- messages from the popup ---------- */
 
   try {
     chrome.runtime.onMessage.addListener(function (m, sender, sendResponse) {

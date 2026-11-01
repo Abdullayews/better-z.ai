@@ -11,12 +11,16 @@
   var RETRYABLE_HTTP = [408, 425, 429, 500, 502, 503, 504, 509, 520, 521, 522, 523, 524, 525, 527, 529];
   var NONRETRY_HTTP = [400, 401, 403, 404, 405, 409, 410, 413, 422, 426];
   var BUSY_RE = /global_limit|user_limit|rate_limit|too many requests|system is busy|server is busy|busy|overload|overloaded|temporar|try again|timeout|timed out|unavailable|internal server|upstream|waf|频繁|繁忙|稍后再试|网络错误/i;
-  var FATAL_RE = /captcha|outdated|signature|unauthor|forbidden|permission|invalid|not found|quota|exceed|policy|moderation|illegal|敏感|违规|登录|鉴权|签名/i;
+  var FATAL_RE = /outdated|signature|unauthor|forbidden|permission|invalid|not found|quota|exceed|policy|moderation|illegal|敏感|违规|登录|鉴权|签名/i;
+  /* captcha (e.g. FRONTEND_CAPTCHA_REQUIRED) is NOT fatal: it gets a fast
+   * auto-retry (1 s) — see content.js scheduleRetry. */
+  var CAPTCHA_RE = /captcha|验证码|人机验证/i;
 
   C.RETRYABLE_HTTP = RETRYABLE_HTTP;
   C.NONRETRY_HTTP = NONRETRY_HTTP;
   C.BUSY_RE = BUSY_RE;
   C.FATAL_RE = FATAL_RE;
+  C.CAPTCHA_RE = CAPTCHA_RE;
 
   C.isHtmlBody = function (t) {
     return /^\s*(?:<!doctype|<html|<head|<body)/i.test(String(t || ''));
@@ -32,8 +36,9 @@
     var t = String(bodyText || '');
     // WAF: 403/405/429/509 + HTML body → retry (LEGACY_SPEC §8)
     if ((status === 403 || status === 405 || status === 429 || status === 509) && C.isHtmlBody(t)) {
-      return { outcome: 'retry', reason: 'waf', msg: 'WAF blok (HTML)' };
+      return { outcome: 'retry', reason: 'waf', msg: 'WAF block (HTML)' };
     }
+    if (CAPTCHA_RE.test(t)) return { outcome: 'retry', reason: 'captcha', fastDelayMs: 1000, msg: C.firstLine(t, 140) };
     if (BUSY_RE.test(t)) return { outcome: 'retry', reason: 'busy', msg: C.firstLine(t, 140) };
     if (RETRYABLE_HTTP.indexOf(status) >= 0) return { outcome: 'retry', reason: 'http_' + status, msg: 'HTTP ' + status };
     if (FATAL_RE.test(t)) return { outcome: 'fatal', reason: 'fatal_text', msg: C.firstLine(t, 140) };
@@ -45,6 +50,7 @@
   /* HTTP 200 + JSON body (not event-stream) */
   C.classifyBodyText = function (bodyText) {
     var t = String(bodyText || '');
+    if (CAPTCHA_RE.test(t)) return { outcome: 'retry', reason: 'captcha', fastDelayMs: 1000, msg: C.firstLine(t, 140) };
     if (BUSY_RE.test(t)) return { outcome: 'retry', reason: 'busy', msg: C.firstLine(t, 140) };
     if (FATAL_RE.test(t)) return { outcome: 'fatal', reason: 'fatal_text', msg: C.firstLine(t, 140) };
     return { outcome: 'await_user', reason: 'body_200', msg: C.firstLine(t, 140) };
@@ -56,6 +62,7 @@
    */
   C.classifyStream = function (s) {
     if (s.errText) {
+      if (CAPTCHA_RE.test(s.errText)) return { outcome: 'retry', reason: 'captcha', fastDelayMs: 1000, msg: C.firstLine(s.errText, 140) };
       if (BUSY_RE.test(s.errText)) return { outcome: 'retry', reason: 'busy', msg: C.firstLine(s.errText, 140) };
       if (FATAL_RE.test(s.errText)) return { outcome: 'fatal', reason: 'fatal_text', msg: C.firstLine(s.errText, 140) };
       return { outcome: 'await_user', reason: 'stream_error', msg: C.firstLine(s.errText, 140) };

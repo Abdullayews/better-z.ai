@@ -43,7 +43,8 @@ Works only on **the z.ai domain and all its subdomains** (including chat.z.ai).
                                              │   • 429 + Retry-After     → RETRY (delay is honored)
                                              │   • WAF block (HTML)      → RETRY
                                              │   • stream break (no [DONE]) → RETRY
-                                             │   • 400/401/captcha/signature → FATAL (no auto-retry)
+                                             │   • 400/401/signature → FATAL (no auto-retry)
+                                             │   • captcha required → fast retry (1 s, same body)
                                              │
                                              ├─ RETRY: same body + same headers;
                                              │   if the signature is older than 4 min →
@@ -100,8 +101,8 @@ DOM fallback + JSON export/import of the settings.
 
 | Suite | Result | Coverage |
 |---|---|---|
-| Unit (Node vm) | **65/65 ✔** | classification, backoff + adaptive factor, cross-implementation signature, preview priorities, popup decisions, markdown export, draft helpers, word counter |
-| Chrome E2E (Playwright + xvfb) | **24 scenarios / 56 checks ✔** | busy→retry (attachment, signature, persist, auto-reload), 429, 400 fatal, stream break, dedup, cancel, preview (3), settings (4), drafts (3), snippet (2), export, popup (3), serial retries, duplicate (2), pause (2), statistics, copy (2), notification, word counter (3), shortcuts (6), full backup (4) |
+| Unit (Node vm) | **67/67 ✔** | classification (incl. captcha fast-retry), backoff + adaptive factor, cross-implementation signature, preview priorities, popup decisions, markdown export, draft helpers, word counter |
+| Chrome E2E (Playwright + xvfb) | **25 scenarios / 61 checks ✔** | busy→retry (attachment, signature, persist, auto-reload), 429, 400 fatal, stream break, dedup, cancel, preview (3), settings (4), drafts (3), snippet (2), export, popup (3), serial retries, duplicate (2), pause (2), statistics, copy (2), notification, word counter (3), shortcuts (6), full backup (4), captcha fast-retry (5) |
 | Firefox E2E (Marionette) | **10 checks ✔** | inject (page world), busy→retry, signature, persist, auto-reload, preview (2), popup closer, draft restore |
 | addons-linter | **0 error / 0 warning / 0 notice** | compliant with AMO rules |
 
@@ -113,7 +114,9 @@ independent Node crypto implementation, the `global_limit` SSE error, multipart 
 - The signature algorithm is taken from the real web app. If the signature **key** changes, retries
   longer than 4 minutes fail with a signature error → FATAL notification (the previous 4-minute replay still works).
 - If completions switch to the WS transport, the capture may break.
-- Captcha / session (401) errors get NO automatic retries — only a notification.
+- Session (401) errors get NO automatic retries — only a notification. Captcha errors
+  (FRONTEND_CAPTCHA_REQUIRED) are the exception: a fast automatic retry runs after
+  1 second and replays the original body — attachments included, files are never lost.
 - If z.ai changes its DOM, the DOM-dependent helpers (preview/popup/drafts) may need an update.
 
 ## Build
@@ -121,8 +124,8 @@ independent Node crypto implementation, the `global_limit` SSE error, multipart 
 ```bash
 python3 build.py          # prod → dist/chrome + dist/firefox + dist/zips/*.zip
 python3 build.py --test   # for E2E (localhost, fast backoff)
-npm run unit              # 65 unit tests
-npm run e2e:chrome        # Chrome E2E under xvfb (24 scenarios)
+npm run unit              # 67 unit tests
+npm run e2e:chrome        # Chrome E2E under xvfb (25 scenarios)
 python3 test/e2e/firefox_spec.py   # Marionette Firefox E2E
 npx addons-linter dist/firefox     # AMO linter
 ```

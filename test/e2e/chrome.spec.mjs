@@ -874,6 +874,47 @@ scenarios.W = async () => {
   await p.close();
 };
 
+/* X — captcha required (FRONTEND_CAPTCHA_REQUIRED): fast 1 s auto-retry,
+   the body (with attachments) is replayed unchanged — files are never lost. */
+scenarios.X = async () => {
+  await setup(['captcha', 'sse_ok']);
+  await attachAndSend('Captcha test with an attachment');
+  // 1) the app shows the error and clears composer + attachments (z.ai behavior)
+  await page.waitForSelector('#messages .err', { timeout: 8000 });
+  const composerVal = await page.inputValue('#composer');
+  const chipCount = await page.locator('#chips .chip').count();
+  if (composerVal !== '' || chipCount !== 0) throw new Error('mock app did not clear composer/chips');
+  ok('X1 captcha error shown + composer/attachments cleared (z.ai behavior reproduced)');
+
+  // 2) fast auto-retry — the gap must be ~1 s (normal backoff would be 5 s+)
+  const log = await pollLog((l) => l.requests.length >= 2, 25000, 'X: no retry');
+  const gap = log.requests[1].t - log.requests[0].t;
+  if (gap < 900) throw new Error('retry fired too early: gap=' + gap + 'ms');
+  if (gap > 3500) throw new Error('fast 1 s retry not applied: gap=' + gap + 'ms');
+  ok('X2 fast auto-retry after ~1 s (gap=' + gap + 'ms; normal backoff is 5 s+)');
+
+  // 3) the retry body is identical — the attachment survived the captcha error
+  const b0 = log.requests[0].body, b1 = log.requests[1].body;
+  if (JSON.stringify(b0) !== JSON.stringify(b1)) throw new Error('retry body differs!');
+  const lastMsg = b1.messages[b1.messages.length - 1].content;
+  if (!Array.isArray(lastMsg) || !lastMsg.some((p) => p.type === 'image_url')) {
+    throw new Error('no attachment in the retry body!');
+  }
+  ok('X3 retry body identical — attachment (image_url) preserved, files not lost');
+
+  // 4) signature checks on both requests
+  const r0 = log.requests[0], r1 = log.requests[1];
+  if (!r0.sigOk || !r1.sigOk) throw new Error('signature check failed: ' + r0.sigOk + '/' + r1.sigOk + ' (' + (r1.why || '') + ')');
+  ok('X4 passed the server signature check (both requests)');
+
+  // 5) success visible on the page, the error row is gone
+  await page.waitForFunction(() => {
+    const t = document.body.innerText || '';
+    return t.includes('Hello! This is an automatic') && !document.querySelector('#messages .err');
+  }, null, { timeout: 15000 });
+  ok('X5 page reloaded automatically — the successful response is visible, the error row is gone');
+};
+
 async function main() {
   console.log('== better z.ai — Chromium E2E ==');
   serverProc = await waitReady();
