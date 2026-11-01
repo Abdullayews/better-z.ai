@@ -23,6 +23,8 @@
   <h3 class="h-row"><span>Alətlər</span></h3>
   <div class="tools">
     <button id="btnExport" class="tool" title="Bu söhbəti Markdown faylı kimi yüklə">⤓ Söhbəti ixrac et (.md)</button>
+    <button id="btnBackup" class="tool" title="BÜTÜN söhbətləri .md + .json kimi yüklə (ehtiyat nüsxə)">⤓⤓ Tam backup (.md + .json)</button>
+    <button id="btnDiag" class="tool" title="Diaqnostika məlumatlarını JSON kimi yüklə (xəta hesabatı üçün)">🧪 Diaqnostika (.json)</button>
     <button id="btnPause" class="tool">⏸ Retry-ləri dayandır</button>
   </div>
   <div id="statsLine" class="stats">—</div>
@@ -48,6 +50,10 @@
     <label><input id="sNotifyDone" type="checkbox"> 🔔 "Cavab hazırdır" bildirişi (tab arxa planda olanda)</label>
     <label><input id="sSerial" type="checkbox"> 🎯 Ardıcıl retry (mesaj sırası qorunur)</label>
     <label><input id="sDupGuard" type="checkbox"> 🛡️ Dublikat qorunması (retry-dan əvvəl yoxlanış)</label>
+    <label><input id="sAdaptive" type="checkbox"> ⏱️ Adaptiv backoff (busy-da gözləmə uzanır)</label>
+    <label><input id="sShortcuts" type="checkbox"> ⌨️ Qısayollar: Alt+R / Alt+P / Alt+E</label>
+    <label><input id="sWordCounter" type="checkbox"> 🔤 Söz sayğacı</label>
+    <label><input id="sNotifySound" type="checkbox"> 🔊 "Cavab hazırdır" səsi</label>
     <label><input id="sDomFallback" type="checkbox"> DOM ehtiyat rejimi (yalnız "busy" mətni görünsə retry)</label>
   </div>
 </section>
@@ -57,7 +63,7 @@
   <pre id="logBox">…</pre>
 </section>
 
-<footer>v1.2.0 · yalnız chat.z.ai üçün</footer>
+<footer>v1.3.0 · yalnız chat.z.ai üçün</footer>
 
 <script src="popup.js"></script>
 </body>

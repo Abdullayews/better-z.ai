@@ -8,14 +8,18 @@
   var els = {
     conn: $('conn'), recList: $('recList'), logBox: $('logBox'),
     btnSave: $('btnSave'), btnClearLog: $('btnClearLog'), btnOptions: $('btnOptions'),
-    btnExport: $('btnExport'), btnPause: $('btnPause'), statsLine: $('statsLine'),
+    btnExport: $('btnExport'), btnBackup: $('btnBackup'), btnDiag: $('btnDiag'), btnPause: $('btnPause'),
+    statsLine: $('statsLine'),
     sBlockPreview: $('sBlockPreview'), sClosePopups: $('sClosePopups'),
     sDraftGuard: $('sDraftGuard'), sSnippets: $('sSnippets'),
     sMaxRetries: $('sMaxRetries'), sInitialDelay: $('sInitialDelay'),
     sFactor: $('sFactor'), sMaxDelay: $('sMaxDelay'),
     sResign: $('sResign'), sPersist: $('sPersist'), sAutoReload: $('sAutoReload'),
     sNotify: $('sNotify'), sNotifyDone: $('sNotifyDone'),
-    sSerial: $('sSerial'), sDupGuard: $('sDupGuard'), sDomFallback: $('sDomFallback')
+    sSerial: $('sSerial'), sDupGuard: $('sDupGuard'), sDomFallback: $('sDomFallback'),
+    /* v1.3.0 */
+    sAdaptive: $('sAdaptive'), sShortcuts: $('sShortcuts'),
+    sWordCounter: $('sWordCounter'), sNotifySound: $('sNotifySound')
   };
 
   var paused = false;
@@ -242,6 +246,11 @@
       els.sSerial.checked = s.serialRetries !== false;
       els.sDupGuard.checked = s.dupGuard !== false;
       els.sDomFallback.checked = !!s.domFallback;
+      /* v1.3.0 */
+      els.sAdaptive.checked = s.adaptiveBackoff !== false;
+      els.sShortcuts.checked = s.shortcutsEnabled !== false;
+      els.sWordCounter.checked = s.wordCounter !== false;
+      els.sNotifySound.checked = !!s.notifySound;
       if (cb) cb();
     });
   }
@@ -266,7 +275,12 @@
         notifyDone: els.sNotifyDone.checked,
         serialRetries: els.sSerial.checked,
         dupGuard: els.sDupGuard.checked,
-        domFallback: els.sDomFallback.checked
+        domFallback: els.sDomFallback.checked,
+        /* v1.3.0 */
+        adaptiveBackoff: els.sAdaptive.checked,
+        shortcutsEnabled: els.sShortcuts.checked,
+        wordCounter: els.sWordCounter.checked,
+        notifySound: els.sNotifySound.checked
       });
       chrome.storage.local.set({ settings: s }, function () {
         els.btnSave.textContent = '✓ Yadda saxlandı';
@@ -306,6 +320,81 @@
       } catch (e) {
         els.btnExport.textContent = '⤓ Söhbəti ixrac et (.md)';
       }
+    });
+  });
+
+  /* v1.3.0: BÜTÜN söhbətlərin backup-I — content script → MAIN world
+     (chat siyahısı + detallar) → .md + .json faylları endirilir */
+  els.btnBackup.addEventListener('click', function () {
+    els.btnBackup.textContent = '… backup gedir';
+    els.btnBackup.disabled = true;
+    askContent(function (resp, tab) {
+      if (!tab) {
+        els.btnBackup.textContent = '✘ səhifə tapılmadı';
+        els.btnBackup.disabled = false;
+        setTimeout(function () { els.btnBackup.textContent = '⤓⤓ Tam backup (.md + .json)'; }, 1800);
+        return;
+      }
+      var t0 = Date.now();
+      try {
+        chrome.tabs.sendMessage(tab.id, { cmd: 'EXPORT_ALL' }, function () {
+          if (chrome.runtime.lastError) { /* cavab gəlməyə bilər — storage-dan izləyirik */ }
+        });
+      } catch (e) { /* ignore */ }
+      var iv = setInterval(function () {
+        chrome.storage.local.get(['lastBackup'], function (g) {
+          var lb = g && g.lastBackup;
+          if (lb && lb.at > t0 - 2000) {
+            clearInterval(iv);
+            els.btnBackup.textContent = '✓ ' + (lb.count || 0) + ' söhbət backup olundu';
+            els.btnBackup.disabled = false;
+            setTimeout(function () { els.btnBackup.textContent = '⤓⤓ Tam backup (.md + .json)'; }, 2600);
+            updateStats();
+          } else if (Date.now() - t0 > 120000) {
+            clearInterval(iv);
+            els.btnBackup.textContent = '✘ vaxt bitdi';
+            els.btnBackup.disabled = false;
+            setTimeout(function () { els.btnBackup.textContent = '⤓⤓ Tam backup (.md + .json)'; }, 2200);
+          }
+        });
+      }, 700);
+    });
+  });
+
+  /* v1.3.0: diaqnostika ixracı — xəta hesabatı üçün hər şey bir JSON-da
+     (versiya, parametrlər, statistika, rekord xülasəsi, jurnal) */
+  els.btnDiag.addEventListener('click', function () {
+    chrome.storage.local.get(['settings', 'stats', 'records', 'log', 'paused', 'lastExport', 'lastBackup'], function (got) {
+      var records = (got && got.records) || {};
+      var byState = {};
+      Object.keys(records).forEach(function (id) {
+        var st = (records[id] && records[id].state) || '?';
+        byState[st] = (byState[st] || 0) + 1;
+      });
+      var manifest = {};
+      try { manifest = chrome.runtime.getManifest() || {}; } catch (e) { /* ignore */ }
+      var diag = {
+        zaiDiag: true,
+        generatedAt: new Date().toISOString(),
+        extensionVersion: manifest.version || '?',
+        userAgent: navigator.userAgent,
+        paused: !!(got && got.paused),
+        settings: (got && got.settings) || {},
+        stats: (got && got.stats) || {},
+        recordsSummary: { total: Object.keys(records).length, byState: byState },
+        lastExport: (got && got.lastExport) || null,
+        lastBackup: (got && got.lastBackup) || null,
+        logTail: ((got && got.log) || []).slice(-40)
+      };
+      var blob = new Blob([JSON.stringify(diag, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'zai-diaqnostika-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () {
+        try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) { /* ignore */ }
+      }, 3000);
     });
   });
 
