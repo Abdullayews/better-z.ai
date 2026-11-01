@@ -1,7 +1,7 @@
-/* Ayarlar səhifəsi + popup + snippet menysu screenşotları (prod build ilə).
+/* Ayarlar səhifəsi + popup + söz sayğacı screenşotları (prod build ilə).
    Qeyd: prod build localhost-a inject olmur — build.py-dən sonra dist
    manifestinə müvəqqəti localhost match əlavə edib screenşot alınır,
-   sonra təmiz prod build bərpa olunur (əvvəlki dəfələr kimi). */
+   sonra təmiz prod build bərpa olunur. */
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -45,36 +45,39 @@ try {
   const page = ctx.pages()[0] || await ctx.newPage();
   await page.goto(BASE + '/', { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zaiExtInject === true, null, { timeout: 8000 });
+  await sleep(600);
+
+  // v1.3.0: SÖZ SAYĞACI — kompozitor dolu, sağ altda sayğaç çipi görünür
+  await page.fill('#composer', 'Bu mesajda söz sayğacı görünür və canlı sayılır');
+  await page.waitForFunction(() => {
+    const el = document.querySelector('.zai-ext-counter');
+    return el && el.style.display !== 'none' && /söz/.test(el.textContent || '');
+  }, null, { timeout: 8000 });
+  await sleep(400);
+  await page.screenshot({ path: path.join(OUT, 'soz-saygaci-v1.3.0.png') });
+  console.log('✔ soz-saygaci-v1.3.0.png');
+
   // canlı vəziyyət üçün bir mesaj göndər (uğurlu) — popup vəziyyəti dolu olsun
-  await page.fill('#composer', 'Salam! Bu test mesajıdır');
   await page.click('#send');
   await page.waitForFunction(() => (document.body.innerText || '').includes('Salam! Bu avtomatik'), null, { timeout: 10000 });
   await sleep(600);
-
-  // ⚡ snippet menyusu açıq (v1.2.0)
-  await page.waitForSelector('.zai-ext-fab', { timeout: 6000 });
-  await page.click('.zai-ext-fab');
-  await sleep(500);
-  await page.screenshot({ path: path.join(OUT, 'snippet-menyusu-v1.2.0.png') });
-  console.log('✔ snippet-menyusu-v1.2.0.png');
-  await page.click('.zai-ext-fab'); // menyunu bağla
 
   const sws = ctx.serviceWorkers();
   const id = new URL(sws[0].url()).host;
 
   const opts = await ctx.newPage();
   await opts.goto('chrome-extension://' + id + '/options/options.html');
-  await opts.waitForSelector('#sBlockPreview');
+  await opts.waitForSelector('#sWordCounter');
   await opts.waitForTimeout(700);
-  await opts.screenshot({ path: path.join(OUT, 'ayarlar-sehifesi-v1.2.0.png'), fullPage: true });
-  console.log('✔ ayarlar-sehifesi-v1.2.0.png');
+  await opts.screenshot({ path: path.join(OUT, 'ayarlar-sehifesi-v1.3.0.png'), fullPage: true });
+  console.log('✔ ayarlar-sehifesi-v1.3.0.png');
 
   const pop = await ctx.newPage();
-  await pop.setViewportSize({ width: 384, height: 660 });
+  await pop.setViewportSize({ width: 384, height: 720 });
   await pop.goto('chrome-extension://' + id + '/popup/popup.html');
   await pop.waitForTimeout(2000);
-  await pop.screenshot({ path: path.join(OUT, 'popup-v1.2.0.png'), fullPage: true });
-  console.log('✔ popup-v1.2.0.png');
+  await pop.screenshot({ path: path.join(OUT, 'popup-v1.3.0.png'), fullPage: true });
+  console.log('✔ popup-v1.3.0.png');
 
   if (server) server.kill();
 } finally {
