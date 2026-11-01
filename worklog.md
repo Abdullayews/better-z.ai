@@ -1,5 +1,72 @@
 # Z.ai Auto-Resend — İş jurnalı
 
+## 2026-11-01 — v1.3.0: "Sürət və nəzarət paketi" (öz təşəbbüsümlə əlavə olunan funksiyalar — davam)
+
+### İstək
+> "biraz daha xüsusiyyət əlavə et, aktiv olaraq githubda işlə, göndər" — v1.2.0-dan
+> sonra yeni funksiyalar, aktiv Git işi və push.
+
+### Düşüncə mərhələsi (v1.2.0 sessiyasındakı 30 dəq düşüncənin davamı)
+- 8 kandidat qiymətləndirildi: qısayollar, tam backup, söz sayğacı, səsli bildiriş,
+  adaptiv backoff, diaqnostika ixracı, ayarların sync saxlanması, söhbətdə axtarış.
+- **6 seçildi; 2 təxirə salındı:** ayar sync (çoxprofilli merge riski, dəyər/gələn
+  fayda nisbəti aşağı) və DOM axtarışı (z.ai DOM dəyişkənliyinə çox həssas).
+- Chat siyahısı endpoint-i protokol spec-indən təsdiqləndi: `GET /api/v1/chats/?page=N&type=default`
+  → `[{id, title, updated_at}]`, səhifələmə 1..10 / boş səhifə / təkrar ilk id / 300 cap.
+
+### Yeni funksiyalar (6)
+1. **⌨️ Klaviatura qısayolları** (`commands` API, Chrome MV3 + Firefox MV2) —
+   Alt+R "İndi cəhd et", Alt+P pauza, Alt+E ixrac. Background → alive tab-ə
+   CMD_SHORTCUT; content `shortcutsEnabled` deyilsə iqnor edir. Alive-tab ünvanı
+   30 s-lik heartbeat ilə təzə saxlanılır.
+2. **⤓⤓ Tam backup** (inject `doBackupAll` + content `backupAll`) — chat siyahısı
+   (səhifələmə spec-i ilə) + hər chatın detalı → birləşdirilmiş **.md** (içindekilər
+   + hər söhbət bölməsi) + orijinal strukturlu **.json**. `backupMaxChats` limiti
+   (1..300), progress pill-də, `stats.backups`, `lastBackup` storage-da.
+3. **🔤 Söz sayğacı** (content, ISOLATED) — kompozitor dolu olanda sağ altda
+   "N söz · M simvol" çipi; `wordCounter` parametri (DOM-dan tam silinir).
+   Saf `C.countWords` classifier-də (unit-test olunur).
+4. **🔊 "Cavab hazırdır" səsi** — notifyDone halında Web Audio ilə iki notalı
+   yumşaq zəng (880→1318 Hz, ~0.5s, səs səviyyəsi 0.12). `notifySound` (standart SÖNÜK).
+5. **⏱️ Adaptiv backoff** (`C.congestionMultiplier`, backoff.js) — hər uğursuz
+   nəticə gecikməni ×1.5…×3 qədər uzadır (cap ×3), uğurda dərhal sıfırlanır,
+   5 dəqiqə "soyuma" var. `adaptiveBackoff` parametri. Retry-After hələ də üstündür.
+6. **🧪 Diaqnostika ixracı** (popup) — versiya, parametrlər, statistika, rekord
+   xülasəsi (state sayı), son ixrac/backup, jurnal quyruğu → bir JSON faylı.
+
+Plus: options səhifəsində yeni bölmələr (sayğaç / backup limiti / qısayollar +
+`kbd` stilləri), popup-da 4 yeni tez açar + 2 yeni alət düyməsi, welcome səhifəsi,
+statistikaya `backups` + `shortcutActions` sayğacları.
+
+### Test nəticələri
+- Unit **65/65** (yeni: congestionMultiplier ×4, countWords ×3).
+- Chrome E2E **24 ssenari / 56 yoxlama — hamısı ✔** (A–T dəyişməz, yeni U/V/W):
+  U sayğaç (3), V qısayollar (6: retry-now dərhal, pauza aç/bağla, ixrac,
+  söndürülmüş hâl, statistika), W tam backup (4: 2 söhbət, siyahı, jurnal, limit).
+- Firefox E2E (Marionette): 0 + FFA1-4 + FFB + FFC + FFD + FFE — hamısı ✔
+  (MV2 manifest-ə `commands` əlavəsi zərər vermədi).
+- addons-linter **0/0/0**.
+- Prod build v1.3.0 → download/zai-autoresend (zip/xpi/SUMS).
+
+### Baza sabitləşdirməsi (v1.2.0 pushundan əvvəl)
+Yavaş mühitdə 3 ssenari flaky idi — hamısı deterministik edildi:
+- **E**: tətbibin öz yenidən göndərişi `page.evaluate` ilə birbaşa DOM-dan
+  (Playwright fill+click gecikməsi 2 s retry ilə yarışırdı).
+- **Q**: ilkin gecikmə 8 s-yə qaldırıldı (pauza klikinə vaxt qalır) + try/finally
+  ilə pauza/parametr bərpası (qaldıqda S-i zəhərliyirdi).
+- **S**: müdafiəçi unpause + maxRetries bərpası try/finally içində.
+- **W**: popup jurnalı ~1 s intervalla təzələndiyindən qeyd polling ilə gözlənilir.
+
+### Debug tapıntıları (gələcək üçün)
+- Sandbox: Bash aləti çağırışı bitəndə nohup-la başladılan arxa plan prosesləri
+  ÖLDÜRÜLÜR — uzun testlər ya foreground, ya da çağırışın öz `sleep` pəncərəsində
+  bitməlidir.
+- `xvfb-run` xauth tələb edir → birbaşa `Xvfb :99 & DISPLAY=:99` istifadə olundu.
+- Playwright lock faylı 1.64.1 həll edir → chromium-1248/firefox-1555 lazımdır
+  (`npx playwright install chromium firefox`).
+- Normadan kənar ayrılmış mock server stdout-u açıq saxlayanda pipeline qapanmır —
+  test öz serverini spawn edirsə cleanup-da öldürməlidir.
+
 ## 2026-11-01 — v1.2.0: "Ağıllı köməkçi paketi" (öz təşəbbüsümlə əlavə olunan funksiyalar)
 
 ### İstək
