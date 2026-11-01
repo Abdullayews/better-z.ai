@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — Preview Guard modulu (v1.1.0).
+ * better z.ai — Preview Guard modulu.
  *
  * Vəzifəsi: chat.z.ai tərəfindən ÖZ-ÖZÜNƏ açılan fayl/şəkil preview
  * pəncərələrini avtomatik bağlamaq. İstifadəçi kliklə açılan preview-lərə
@@ -232,7 +232,7 @@
           logClose('təkrar açılır — müdaxilə dayandırıldı');
           return;
         }
-        // v1.2.0: statistika üçün bloklanma sayğacı
+        // statistika üçün bloklanma sayğacı
         if (hooks && hooks.onBlocked) { try { hooks.onBlocked(); } catch (e) { /* ignore */ } }
         pressEscape(el);
       } else if (step === 1) {

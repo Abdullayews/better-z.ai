@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — Popap bağlayıcı (v1.2.0).
+ * better z.ai — Popap bağlayıcı.
  *
  * Vəzifəsi: z.ai-in öz-özünə açdığı axsayan popapları ("Currently in peak
  * hours" və s.) avtomatik bağlamaq. Açar-söz siyahısı istifadəçi tərəfindən

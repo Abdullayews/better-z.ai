@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — ortaq təsnifat modulu.
+ * better z.ai — ortaq təsnifat modulu.
  * MAIN world, ISOLATED world və Node vm test kontekstində işləyir.
  * Mənbə: LEGACY_SPEC §5 (zai_protokol_spec.md) — z.ai SSE protokolunun dəqiq
  * xəta təsnifatı əsasında.
@@ -109,7 +109,7 @@
     return [c || ec, d].filter(Boolean).join(' — ');
   };
 
-  /* v1.3.0 SÖZ SAYĞACI — boşluqlarla ayrılmış söz sayı (Unicode-safe trim) */
+  /* SÖZ SAYĞACI — boşluqlarla ayrılmış söz sayı (Unicode-safe trim) */
   C.countWords = function (text) {
     var t = String(text || '').trim();
     if (!t) return 0;

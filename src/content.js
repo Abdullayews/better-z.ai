@@ -1,15 +1,15 @@
 /*
- * Z.ai Auto-Resend — content script (ISOLATED world).
+ * better z.ai — content script (ISOLATED world).
  *
  * Vəzifələri:
  *   - səhifədəki (MAIN world) inject.js ilə postMessage ilə danışır
  *   - capture/nəticə qeydlərini chrome.storage-da saxlayır (reload-dan sonra bərpa)
- *   - eksponensial backoff ilə retry-ləri planlaşdırır (v1.2.0: ARDICIL rejim +
+ *   - eksponensial backoff ilə retry-ləri planlaşdırır (ARDICIL rejim +
  *     QLOBAL PAUZA)
  *   - pill (zipləyən vəziyyət kartı), badge və bildirişləri idarə edir
  *   - uğurlu retry-dan sonra persist + (istəyə bağlı) səhifənin yenilənməsi
  *
- * v1.2.0 yenilikləri (content tərəfi):
+ * Əlavə funksiyalar (content tərəfi):
  *   - QARALAMA MÜHAFİZƏSİ: kompozitor mətni avtomatik yadda saxlanılır,
  *     reload/crash-dan sonra "Bərpa et" təklifi
  *   - SNIPPET KİTABXANASI: ⚡ düyməsi — tez istifadə şablonları
@@ -19,7 +19,7 @@
  *   - STATİSTİKA: xilas/blok/bərpa sayğacları (popup + ayarlar)
  *   - DUBLİKAT QORUNMASI: retry-dan əvvəl server tarixçəsi yoxlanılır
  *
- * v1.3.0 yenilikləri (content tərəfi):
+ * Daha çox funksiyalar (content tərəfi):
  *   - KLAVİATURA QISAYOLLARI: Alt+R (indi cəhd et), Alt+P (pauza), Alt+E (ixrac)
  *     — background commands API → CMD_SHORTCUT mesajı
  *   - BÜTÜN SÖHBƏTLƏRİN BACKUP-I: chat siyahısı + detallar → .md + .json
@@ -33,10 +33,10 @@
   self.__zaiExtContent = true;
 
   var C = self.__zaiExtCore;
-  var PG = self.__zaiExtPreview;             // preview guard (v1.1.0)
-  var PC = self.__zaiExtPopupCloser;         // popap bağlayıcı (v1.2.0)
-  var DRAFTS = self.__zaiExtDrafts;          // qaralama köməkçiləri (v1.2.0)
-  var MD = self.__zaiExtMdExport;            // markdown ixracı (v1.2.0)
+  var PG = self.__zaiExtPreview;             // preview guard
+  var PC = self.__zaiExtPopupCloser;         // popap bağlayıcı
+  var DRAFTS = self.__zaiExtDrafts;          // qaralama köməkçiləri
+  var MD = self.__zaiExtMdExport;            // markdown ixracı
   var DEFAULTS = self.__zaiExtDefaults || {};
   var settings = Object.assign({}, DEFAULTS);
   var records = {};        // id -> record (storage ilə sinonx saxlanılır)
@@ -48,7 +48,7 @@
   var dirty = false;
   var byHash = {};         // bodyHash -> recordId (aktivlər üçün dedup)
 
-  /* v1.2.0 state */
+  /* state */
   var stats = {
     captured: 0, retryOk: 0, retryFinalFail: 0, fatal: 0,
     previewBlocked: 0, popupsClosed: 0, draftsRestored: 0,
@@ -64,7 +64,7 @@
   var draftSaveTimer = null;
   var lastPath = null;
 
-  /* v1.3.0 state */
+  /* state */
   var counterEl = null;      // söz sayğacı elementi
   var congestion = 0;        // ardıcıl busy nəticələri (adaptiv backoff)
   var lastCongestionAt = 0;
@@ -312,7 +312,7 @@
     else hidePill();
   }
 
-  /* ---------- qlobal pauza (v1.2.0) ---------- */
+  /* ---------- qlobal pauza ---------- */
 
   function setPaused(v) {
     paused = !!v;
@@ -340,14 +340,14 @@
       rec.state = 'failed_final';
       rec.lastMsg = reason || '';
       stats.retryFinalFail = (stats.retryFinalFail || 0) + 1;
-      notify('Z.ai Auto-Resend', 'Avtomatik göndərilmə alınmadı (' + settings.maxRetries + ' cəhd). Mesaj popup-dan əl ilə təkrarlana bilər.');
+      notify('better z.ai', 'Avtomatik göndərilmə alınmadı (' + settings.maxRetries + ' cəhd). Mesaj popup-dan əl ilə təkrarlana bilər.');
       updateBadge();
       save();
       refreshPill();
       return;
     }
     var delay = C.computeDelay(rec.attempt, settings);
-    // v1.3.0: adaptiv backoff — ardıcıl busy-lərdə gecikmə uzanır (maks x3);
+    // adaptiv backoff — ardıcıl busy-lərdə gecikmə uzanır (maks x3);
     // 5 dəqiqə "soyuma" olmadan yeni busy yoxdursa sayğaç sıfırlanır.
     if (settings.adaptiveBackoff !== false && congestion > 0) {
       if (Date.now() - lastCongestionAt > 300000) {
@@ -362,7 +362,7 @@
     rec.lastMsg = reason || '';
     if (rec.attempt === 1 && !rec.notifiedStart) {
       rec.notifiedStart = true;
-      notify('Z.ai Auto-Resend', 'Göndərilmədi (' + C.firstLine(reason || 'xəta', 60) + '). Avtomatik yenidən cəhd ' + rec.attempt + '/' + settings.maxRetries + '…');
+      notify('better z.ai', 'Göndərilmədi (' + C.firstLine(reason || 'xəta', 60) + '). Avtomatik yenidən cəhd ' + rec.attempt + '/' + settings.maxRetries + '…');
     }
     updateBadge();
     save();
@@ -377,15 +377,15 @@
       rec.state = 'succeeded';
       rec.ts = Date.now();
       rec.lastMsg = '';
-      congestion = 0; // v1.3.0: uğur → tıxanma sayğacı sıfırlanır
+      congestion = 0; // uğur → tıxanma sayğacı sıfırlanır
       if (d.dupGuard) {
-        // v1.2.0: dublikat qorunması retry-ni ləğv etdi — mesaj onsuz da çatıb
+        // dublikat qorunması retry-ni ləğv etdi — mesaj onsuz da çatıb
         stats.dupAvoided = (stats.dupAvoided || 0) + 1;
-        notify('Z.ai Auto-Resend', 'Mesaj onsuz da çatmışdı — dublikat göndərmə önləndi ✓');
+        notify('better z.ai', 'Mesaj onsuz da çatmışdı — dublikat göndərmə önləndi ✓');
         maybeReload(rec.id);
       } else if (d.src === 'retry') {
         stats.retryOk = (stats.retryOk || 0) + 1;
-        notify('Z.ai Auto-Resend', 'Mesaj avtomatik yenidən göndərildi ✓ (attachment-lar qorundu).');
+        notify('better z.ai', 'Mesaj avtomatik yenidən göndərildi ✓ (attachment-lar qorundu).');
         if (settings.persistAfterRetry && rec.canReplay) {
           rec.state = 'persisting';
           post({ t: 'PERSIST', id: rec.id });
@@ -393,11 +393,11 @@
           maybeReload(rec.id);
         }
       } else if (settings.notifyDone && (document.hidden || hiddenOverride === true) && !rec.notifiedDone) {
-        // v1.2.0: tab arxa planda olanda "cavab hazırdır" bildirişi
+        // tab arxa planda olanda "cavab hazırdır" bildirişi
         rec.notifiedDone = true;
         pushLog('bildiriş: cavab hazırdır (' + C.firstLine(rec.promptPreview || '', 40) + ')');
         notify('Z.ai — cavab hazırdır ✓', 'Sual: ' + C.firstLine(rec.promptPreview || '', 60));
-        if (settings.notifySound) playChime(); // v1.3.0: yumşaq zəng
+        if (settings.notifySound) playChime(); // yumşaq zəng
       }
       updateBadge();
       save();
@@ -405,7 +405,7 @@
       return;
     }
     if (d.outcome === 'retry') {
-      // v1.3.0: tıxanma sayğacı — hər uğursuz nəticə gecikmələri bir az uzadır
+      // tıxanma sayğacı — hər uğursuz nəticə gecikmələri bir az uzadır
       congestion = Math.min(9, congestion + 1);
       lastCongestionAt = Date.now();
       scheduleRetry(rec, d.msg || d.reason, d.retryAfterMs);
@@ -434,7 +434,7 @@
     rec.ts = Date.now();
     rec.lastMsg = d.msg || d.reason || '';
     stats.fatal = (stats.fatal || 0) + 1;
-    notify('Z.ai Auto-Resend', 'Göndərilmədi: ' + C.firstLine(rec.lastMsg, 90) + ' — avtomatik retry bu xəta üçün deyil.');
+    notify('better z.ai', 'Göndərilmədi: ' + C.firstLine(rec.lastMsg, 90) + ' — avtomatik retry bu xəta üçün deyil.');
     updateBadge();
     save();
     refreshPill();
@@ -448,7 +448,7 @@
       maybeReload(rec.id);
     } else {
       // persist alınmadı — yeniləməyi tövsiyə edirik
-      notify('Z.ai Auto-Resend', 'Mesaj göndərildi, amma tarixçə yazıla bilmədi — səhifəni yeniləyin.');
+      notify('better z.ai', 'Mesaj göndərildi, amma tarixçə yazıla bilmədi — səhifəni yeniləyin.');
     }
     updateBadge();
     save();
@@ -531,7 +531,7 @@
     save();
   }
 
-  /* ---------- tick (v1.2.0: ardıcıl retry + pauza) ---------- */
+  /* ---------- tick (ardıcıl retry + pauza) ---------- */
 
   function tick() {
     var now = Date.now();
@@ -618,7 +618,7 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* ---------- mübadilə buferi (v1.2.0) ---------- */
+  /* ---------- mübadilə buferi ---------- */
 
   function fallbackCopy(t) {
     try {
@@ -658,7 +658,7 @@
     });
   }
 
-  /* ---------- kompozitor + QARALAMA MÜHAFİZƏSİ (v1.2.0) ---------- */
+  /* ---------- kompozitor + QARALAMA MÜHAFİZƏSİ ---------- */
 
   function findComposer() {
     try {
@@ -747,7 +747,7 @@
   }
 
   function onComposerInput() {
-    updateCounter(); // v1.3.0: söz sayğacı (draftGuard-dan asılı deyil)
+    updateCounter(); // söz sayğacı (draftGuard-dan asılı deyil)
     if (!settings.draftGuard || !DRAFTS) return;
     var t = composerText();
     var k = currentDraftKey();
@@ -830,7 +830,7 @@
     }
   }
 
-  /* ---------- SNIPPET KİTABXANASI (v1.2.0) ---------- */
+  /* ---------- SNIPPET KİTABXANASI ---------- */
 
   function snippetList() {
     if (!settings.snippetsEnabled || !Array.isArray(settings.snippets)) return [];
@@ -903,7 +903,7 @@
     } catch (e) { closeSnipMenu(); }
   }
 
-  /* ---------- SÖZ SAYĞACI (v1.3.0) ---------- */
+  /* ---------- SÖZ SAYĞACI ---------- */
 
   function ensureCounter() {
     if (settings.wordCounter === false) {
@@ -915,7 +915,7 @@
     try {
       counterEl = document.createElement('div');
       counterEl.className = 'zai-ext-counter';
-      counterEl.title = 'Söz / simvol sayı — Z.ai Auto-Resend';
+      counterEl.title = 'Söz / simvol sayı — better z.ai';
       counterEl.style.display = 'none';
       document.body.appendChild(counterEl);
     } catch (e) { counterEl = null; }
@@ -930,7 +930,7 @@
     counterEl.textContent = C.countWords(t) + ' söz · ' + t.length + ' simvol';
   }
 
-  /* ---------- SƏSLİ BİLDİRİŞ (v1.3.0) ---------- */
+  /* ---------- SƏSLİ BİLDİRİŞ ---------- */
 
   function playChime() {
     try {
@@ -956,7 +956,7 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* ---------- KLAVİATURA QISAYOLLARI (v1.3.0) ---------- */
+  /* ---------- KLAVİATURA QISAYOLLARI ---------- */
 
   function handleShortcut(action) {
     if (!settings.shortcutsEnabled) return;
@@ -1001,7 +1001,7 @@
     }
   }
 
-  /* ---------- SÖHBƏTİN İXRACI (v1.2.0) ---------- */
+  /* ---------- SÖHBƏTİN İXRACI ---------- */
 
   function currentChatId() {
     var id = '';
@@ -1022,7 +1022,7 @@
     var cid = currentChatId();
     if (!cid) {
       pushLog('ixrac: söhbət id tapılmadı');
-      notify('Z.ai Auto-Resend', 'İxrac üçün söhbət tapılmadı — əvvəlcə bu söhbətdə bir mesaj göndərin.');
+      notify('better z.ai', 'İxrac üçün söhbət tapılmadı — əvvəlcə bu söhbətdə bir mesaj göndərin.');
       return;
     }
     pushLog('ixrac başlayır: ' + cid);
@@ -1032,13 +1032,13 @@
   function onExported(d) {
     if (!d || !d.ok) {
       pushLog('ixrac alınmadı: ' + ((d && d.why) || 'naməlum'));
-      notify('Z.ai Auto-Resend', 'Söhbət ixrac oluna bilmədi (' + ((d && d.why) || 'xəta') + ').');
+      notify('better z.ai', 'Söhbət ixrac oluna bilmədi (' + ((d && d.why) || 'xəta') + ').');
       return;
     }
     var md = MD ? MD.buildMarkdown(d.chat, { url: location.href, date: Date.now() }) : null;
     if (!md) {
       pushLog('ixrac: tarixçə boşdur');
-      notify('Z.ai Auto-Resend', 'Söhbət tarixçəsi boşdur — ixrac üçün məlumat yoxdur.');
+      notify('better z.ai', 'Söhbət tarixçəsi boşdur — ixrac üçün məlumat yoxdur.');
       return;
     }
     var dt = new Date();
@@ -1066,7 +1066,7 @@
     flashPillText('✓ Söhbət ixrac olundu (.md)');
   }
 
-  /* ---------- BÜTÜN SÖHBƏTLƏRİN BACKUP-I (v1.3.0) ---------- */
+  /* ---------- BÜTÜN SÖHBƏTLƏRİN BACKUP-I ---------- */
 
   function backupAll() {
     if (backupBusy) { flashPillText('⏳ Backup artıq gedir…'); return; }
@@ -1093,21 +1093,21 @@
     backupBusy = false;
     if (!d || !d.ok) {
       pushLog('tam backup alınmadı: ' + ((d && d.why) || 'naməlum'));
-      notify('Z.ai Auto-Resend', 'Tam backup alınmadı (' + ((d && d.why) || 'xəta') + ').');
+      notify('better z.ai', 'Tam backup alınmadı (' + ((d && d.why) || 'xəta') + ').');
       refreshPill();
       return;
     }
     var chats = d.chats || [];
     if (!chats.length) {
       pushLog('tam backup: söhbət tapılmadı');
-      notify('Z.ai Auto-Resend', 'Backup üçün söhbət tapılmadı.');
+      notify('better z.ai', 'Backup üçün söhbət tapılmadı.');
       refreshPill();
       return;
     }
     // 1) Birləşdirilmiş Markdown (içindekilər + hər söhbət ayrıca bölmə)
     var parts = ['# Z.ai — tam backup', '',
       '> ' + new Date().toLocaleString('az-AZ') + ' · ' + chats.length +
-      ' söhbət · Z.ai Auto-Resend v1.3.0', '', '## İçindekilər', ''];
+      ' söhbət · better z.ai', '', '## İçindekilər', ''];
     (d.list || []).forEach(function (c, i) {
       parts.push('- ' + (i + 1) + '. ' + (c.title || '(adsız)') + ' (`' + c.id + '`)');
     });
@@ -1146,7 +1146,7 @@
     stats.backups = (stats.backups || 0) + 1;
     try { chrome.storage.local.set({ lastBackup: { at: Date.now(), count: chats.length, list: (d.list || []).slice(0, 50) } }); } catch (e) { /* ignore */ }
     pushLog('tam backup hazır: ' + chats.length + ' söhbət (.md + .json)');
-    notify('Z.ai Auto-Resend', 'Tam backup hazır ✓ — ' + chats.length + ' söhbət (.md + .json).');
+    notify('better z.ai', 'Tam backup hazır ✓ — ' + chats.length + ' söhbət (.md + .json).');
     save();
     flashPillText('✓ Tam backup hazır (' + chats.length + ' söhbət)');
   }
@@ -1272,7 +1272,7 @@
       ensureComposer();
       ensureFab();
       maybeOfferDraft();
-      updateCounter(); // v1.3.0: söz sayğacı (parametr bağlanırsa gizlənir)
+      updateCounter(); // söz sayğacı (parametr bağlanırsa gizlənir)
     } catch (e) { /* ignore */ }
   }
 
@@ -1378,7 +1378,7 @@
   boot();
   setInterval(tick, 250);
   setInterval(housekeeping, 1200);
-  /* v1.3.0: qısayollar üçün canlı tab ünvanı 30 s-də bir yenilənir
+  /* qısayollar üçün canlı tab ünvanı 30 s-də bir yenilənir
      (background aliveTab-i yalnız mesajdan bilir) */
   setInterval(function () { bg({ type: 'alive' }); }, 30000);
 })();

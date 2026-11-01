@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — Firefox bootstrap (ISOLATED world).
+ * better z.ai — Firefox bootstrap (ISOLATED world).
  *
  * Firefox content_scripts `world: "MAIN"`-i dəstəkləmir; ona görə MAIN world
  * kodu (inject.bundle.js) bu bootstrap tərəfindən <script src> kimi səhifəyə

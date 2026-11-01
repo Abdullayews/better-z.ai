@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — MAIN world inyeksiyası (səhifə konteksti).
+ * better z.ai — MAIN world inyeksiyası (səhifə konteksti).
  *
  * Vəzifələri:
  *   1. fetch/XHR yolasıyla z.ai completion sorğularını TUTMAQ (POST /api/v2/chat/completions)
@@ -222,7 +222,7 @@
         }
       }
     } catch (e) { /* ignore */ }
-    // v1.2.0: uğursuz mesajın TAM mətni (kopyala düyməsi üçün)
+    // uğursuz mesajın TAM mətni (kopyala düyməsi üçün)
     meta.lastUserText = String(meta.lastUserText || '').slice(0, 200000);
     return meta;
   }
@@ -317,7 +317,7 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* ---------- Dublikat qorunması (v1.2.0) ----------
+  /* ---------- Dublikat qorunması ----------
    *
    * Retry-dan ƏVVƏL server tarixçəsi yoxlanılır: mesaj onsuz da çatıb və
    * cavabı yazılıbsa (məs. axın kəsilib, amma server yazıb) yenidən
@@ -356,7 +356,7 @@
       POST({ t: 'RESULT', src: 'retry', id: id, outcome: 'fatal', reason: 'not_replayable', msg: 'Sorğu təkrarlanabilməz' });
       return;
     }
-    /* v1.2.0: dublikat qorunması — sorğu getməzdən əvvəl serverə baxılır */
+    /* dublikat qorunması — sorğu getməzdən əvvəl serverə baxılır */
     if (opts.dupGuard && rec.chatId && rec.bodyJson && rec.bodyJson.current_user_message_id) {
       var dup = await checkDuplicate(rec);
       if (dup) {
@@ -528,7 +528,7 @@
     }
   }
 
-  /* ---------- Söhbətin ixracı (v1.2.0) ----------
+  /* ---------- Söhbətin ixracı ----------
    *
    * GET /api/v1/chats/{id} — mövcud sessiya kukiləri ilə; cavab content
    * script-ə ötürülür, Markdown orada qurulur (core/mdexport.js).
@@ -551,7 +551,7 @@
     }
   }
 
-  /* ---------- BÜTÜN SÖHBƏTLƏRİN BACKUP-I (v1.3.0) ----------
+  /* ---------- BÜTÜN SÖHBƏTLƏRİN BACKUP-I ----------
    *
    * GET /api/v1/chats/?page=N&type=default → [{id, title, updated_at}]
    * (protokol spec-i: səhifələmə 1..10, boş səhifə / təkrar ilk id / qısa

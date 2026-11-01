@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — Söhbətin Markdown ixracı (v1.2.0).
+ * better z.ai — Söhbətin Markdown ixracı.
  * Saf funksiya: /api/v1/chats/{id} cavabındakı tarixçəni Markdown sənədinə
  * çevirir. Node vm-də unit-test olunur, content script-də istifadə olunur.
  */

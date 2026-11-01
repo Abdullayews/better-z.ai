@@ -1,11 +1,11 @@
 {
   "manifest_version": 2,
-  "name": "Z.ai Auto-Resend",
+  "name": "better z.ai",
   "version": "1.3.0",
-  "description": "Sistem məşğul (system is busy) və digər xətalarda mesajı attachment-larla birlikdə avtomatik yenidən göndərir; preview-lərin avtomatik açılmasını əngəlləyir + qaralama mühafizəsi, snippet kitabxanası, söhbət ixracı, tam backup, qısayollar, popap bağlayıcı.",
+  "description": "z.ai üçün köməkçi: xətalarda mesaj və əlavələr itmir — avtomatik yenidən göndərmə, preview nəzarəti, qaralama mühafizəsi, snippetlər, ixrac və backup.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "zai-autoresend@abdullayews",
+      "id": "better-zai@abdullayews",
       "strict_min_version": "112.0"
     }
   },
@@ -32,7 +32,7 @@
   },
   "browser_action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Z.ai Auto-Resend",
+    "default_title": "better z.ai",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -42,7 +42,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://chat.z.ai/*"],
+      "matches": ["*://*.z.ai/*"],
       "js": [
         "ff-bootstrap.js",
         "core/classifier.js",

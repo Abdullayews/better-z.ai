@@ -1,8 +1,8 @@
 {
-  "name": "zai-autoresend",
-  "version": "1.2.0",
+  "name": "better-z.ai",
+  "version": "1.3.0",
   "private": true,
-  "description": "Z.ai avto-yenidən göndərmə extension-ı — build və test alətləri",
+  "description": "better z.ai — chat.z.ai üçün köməkçi extension (build və test alətləri)",
   "scripts": {
     "build": "python3 build.py",
     "build:test": "python3 build.py --test",

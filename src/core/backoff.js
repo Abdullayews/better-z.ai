@@ -1,5 +1,5 @@
 /*
- * Z.ai Auto-Resend — eksponensial geri çəkilmə (backoff) modulu.
+ * better z.ai — eksponensial geri çəkilmə (backoff) modulu.
  */
 (function (root) {
   'use strict';
@@ -39,7 +39,7 @@
   };
 
   /*
-   * v1.3.0 ADAPTİV BACKOFF — tıxanma (congestion) amili.
+   * ADAPTİV BACKOFF — tıxanma (congestion) amili.
    * Ardıcıl busy/rate-limit nəticələri artdıqca gecikmələr uzanır:
    * 0 → x1.0, 1 → x1.5, 2 → x2.0, 3 → x2.5, 4+ → x3.0 (maksimum).
    * Uğur gələn kimi 0-a düşür (content.js tərəfindən idarə olunur).
