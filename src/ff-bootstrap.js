@@ -1,10 +1,10 @@
 /*
  * better z.ai — Firefox bootstrap (ISOLATED world).
  *
- * Firefox content_scripts `world: "MAIN"`-i dəstəkləmir; ona görə MAIN world
- * kodu (inject.bundle.js) bu bootstrap tərəfindən <script src> kimi səhifəyə
- * yerləşdirilir (web_accessible_resources vasitəsilə — CSP problemi yoxdur:
- * chat.z.ai CSP başlığı/metası yoxdur, yoxlanıldı).
+ * Firefox content_scripts does not support `world: "MAIN"`; therefore the MAIN
+ * world code (inject.bundle.js) is placed into the page by this bootstrap as
+ * a <script src> (via web_accessible_resources — no CSP problem:
+ * chat.z.ai has no CSP header/meta, verified).
  */
 (function () {
   'use strict';

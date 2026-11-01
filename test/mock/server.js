@@ -1,14 +1,14 @@
 /*
- * Z.ai mock server — E2E testləri üçün.
- * Real protokol formasını təkrarlayır (LEGACY_SPEC §5): /api/v2/chat/completions
- * + X-Signature imza yoxlaması (müstəqil Node crypto implementasiyası),
+ * Z.ai mock server — for E2E tests.
+ * Replicates the real protocol shape (LEGACY_SPEC §5): /api/v2/chat/completions
+ * + X-Signature verification (an independent Node crypto implementation),
  * /api/v1/storage/pfs/files/upload (multipart), /api/v1/chats/{id} (persist).
  *
- * Nəzarət:
+ * Controls:
  *   POST /_ctl {script:["busy","sse_ok",...], resetPersist:true}
  *   GET  /_log  → {requests, persists, uploads}
  *   DELETE /_log
- * Rejimlər: sse_ok | busy | http429 | waf | netkill | badreq | empty200
+ * Modes: sse_ok | busy | http429 | waf | netkill | badreq | empty200
  */
 'use strict';
 const http = require('http');
@@ -20,15 +20,15 @@ const PORT = Number(process.env.PORT || 8907);
 const KEY = 'key-@@@@)))()((9))-xxxx&&&%%%%%';
 const CHAT_ID = 'mock-chat-1';
 
-/* tam backup üçün ikinci "köhnə" söhbət (siyahı + detal) */
+/* a second "old" chat for full backup tests (list + detail) */
 const CHAT2_ID = 'mock-chat-2';
 function secondChat() {
   return {
-    id: CHAT2_ID, title: 'Ikinci mock söhbət', models: ['x-preview-l'],
+    id: CHAT2_ID, title: 'Second mock chat', models: ['x-preview-l'],
     history: {
       messages: {
-        'm1': { id: 'm1', parentId: null, childrenIds: ['m2'], role: 'user', content: 'Köhnə sual 1', timestamp: 1700000000, models: ['x-preview-l'] },
-        'm2': { id: 'm2', parentId: 'm1', childrenIds: [], role: 'assistant', content: 'Köhnə cavab 1 — backup testi.', timestamp: 1700000010, done: true, model: 'x-preview-l' }
+        'm1': { id: 'm1', parentId: null, childrenIds: ['m2'], role: 'user', content: 'Old question 1', timestamp: 1700000000, models: ['x-preview-l'] },
+        'm2': { id: 'm2', parentId: 'm1', childrenIds: [], role: 'assistant', content: 'Old answer 1 — backup test.', timestamp: 1700000010, done: true, model: 'x-preview-l' }
       },
       currentId: 'm2'
     },
@@ -70,8 +70,8 @@ function pickHeaders(req) {
   };
 }
 
-/* Müstəqil imza implementasiyası (Node crypto) — inject.js-in yenidən imzalaması
-   bunun QARŞILIĞI olmalıdır. */
+/* Independent signature implementation (Node crypto) — inject.js re-signing
+   must be the mirror image of this. */
 function verifySig(req, bodyJson) {
   const u = new URL(req.url, 'http://localhost:' + PORT);
   const sp = u.searchParams;
@@ -167,7 +167,7 @@ async function handleCompletion(req, res) {
     return;
   }
   if (mode === 'netkill') {
-    sse(res, { data: { message: { delta_content: 'qismən cavab gəldi — ' } } });
+    sse(res, { data: { message: { delta_content: 'partial response received — ' } } });
     setTimeout(() => { try { res.destroy(); } catch (e) { } }, 30);
     return;
   }
@@ -177,9 +177,9 @@ async function handleCompletion(req, res) {
     return;
   }
   if (mode === 'duptrap') {
-    // v1.2.0 DUBLİKAT ssenarisi: server tarixçəni uğur kimi YAZIR,
-    // amma axını [DONE]-siz bitirir (axın kəsintisi). Extension retry-dan
-    // əvvəl GET /chats/{id} ilə bunu görüb yenidən göndəRMƏməlidir.
+    // v1.2.0 DUPLICATE scenario: the server writes history as success
+    // but ends the stream without [DONE] (stream cut). Before retrying, the
+    // extension must see this via GET /chats/{id} and NOT resend.
     const bj = bodyJson || {};
     const msgs = Array.isArray(bj.messages) ? bj.messages : [];
     const entries = {};
@@ -196,21 +196,21 @@ async function handleCompletion(req, res) {
     const aid = String(bj.id || 'assistant-duptrap');
     entries[aid] = {
       id: aid, parentId: prev, childrenIds: [], role: 'assistant',
-      content: 'Server tərəfindən artıq yazılmış cavab (duptrap səhvi).',
+      content: 'Response already written by the server (duptrap mode).',
       timestamp: Math.floor(Date.now() / 1000), done: true, model: bj.model || 'x-preview-l'
     };
     if (prev && entries[prev]) entries[prev].childrenIds = [aid];
     const chat = state.persistedChat || defaultChat();
     chat.history = { messages: entries, currentId: aid };
     state.persistedChat = chat;
-    sse(res, { data: { message: { delta_content: 'qismən cavab gəldi — ' } } });
-    res.end(); // [DONE] YOXDUR
+    sse(res, { data: { message: { delta_content: 'partial response received — ' } } });
+    res.end(); // no [DONE]
     return;
   }
   // sse_ok
   sse(res, { data: { message: { phase: 'thinking' } } });
-  sse(res, { data: { message: { delta_content: 'Salam! Bu avtomatik cavabdır — hissə 1. ' } } });
-  sse(res, { data: { message: { delta_content: 'Hissə 2 tamamlandı.' } } });
+  sse(res, { data: { message: { delta_content: 'Hello! This is an automatic response — part 1. ' } } });
+  sse(res, { data: { message: { delta_content: 'Part 2 complete.' } } });
   sse(res, { data: { message: { done: true, delta_content: '' } } });
   res.write('data: [DONE]\n\n');
   res.end();
@@ -226,7 +226,7 @@ async function handleUpload(req, res) {
   const id = 'file-' + state.uploads;
   const info = {
     id: id,
-    filename: (file && file.filename) || 'adsız',
+    filename: (file && file.filename) || 'untitled',
     type: (file && file.contentType) || 'application/octet-stream',
     size: file ? file.data.length : 0
   };
@@ -239,7 +239,7 @@ async function handleUpload(req, res) {
 }
 
 function defaultChat() {
-  return { id: CHAT_ID, title: 'Mock söhbət', history: { messages: {}, currentId: null } };
+  return { id: CHAT_ID, title: 'Mock chat', history: { messages: {}, currentId: null } };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -268,15 +268,15 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify(state.persistedChat || defaultChat()));
         return;
       }
-      /* chat siyahısı — GET /api/v1/chats/?page=N&type=default → massiv
-         (protokol spec-i: {id, title, updated_at}; səhifə 2 boşdur) */
+      /* chat list — GET /api/v1/chats/?page=N&type=default -> array
+         (protocol spec: {id, title, updated_at}; page 2 is empty) */
       if (p === '/api/v1/chats/' || p === '/api/v1/chats') {
         const page = Number(u.searchParams.get('page') || '1');
         if (page <= 1) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify([
-            { id: CHAT_ID, title: (state.persistedChat && state.persistedChat.title) || 'Mock söhbət', updated_at: Math.floor(Date.now() / 1000) },
-            { id: CHAT2_ID, title: 'Ikinci mock söhbət', updated_at: 1700000010 }
+            { id: CHAT_ID, title: (state.persistedChat && state.persistedChat.title) || 'Mock chat', updated_at: Math.floor(Date.now() / 1000) },
+            { id: CHAT2_ID, title: 'Second mock chat', updated_at: 1700000010 }
           ]));
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json' });

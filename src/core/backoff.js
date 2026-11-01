@@ -1,14 +1,14 @@
 /*
- * better z.ai — eksponensial geri çəkilmə (backoff) modulu.
+ * better z.ai — exponential backoff module.
  */
 (function (root) {
   'use strict';
   var C = root.__zaiExtCore = root.__zaiExtCore || {};
 
   /*
-   * attempt: 1-əsaslı retry nömrəsi
+   * attempt: 1-based retry number
    * cfg: { initialDelayMs, backoffFactor, maxDelayMs, jitter }
-   * rand: test üçün əvəzlənə bilən təsadüfi funksiya
+   * rand: replaceable random function for tests
    */
   C.computeDelay = function (attempt, cfg, rand) {
     if (typeof rand !== 'function') rand = Math.random;
@@ -26,7 +26,7 @@
     return Math.min(d, maxDelay);
   };
 
-  /* Retry-After başlığı varsa onu prioritet veririk (serverin istəyi) */
+  /* If a Retry-After header is present, it takes priority (the server's request) */
   C.applyRetryAfter = function (delayMs, retryAfterMs) {
     var r = Number(retryAfterMs);
     if (r > 0) {
@@ -39,10 +39,10 @@
   };
 
   /*
-   * ADAPTİV BACKOFF — tıxanma (congestion) amili.
-   * Ardıcıl busy/rate-limit nəticələri artdıqca gecikmələr uzanır:
-   * 0 → x1.0, 1 → x1.5, 2 → x2.0, 3 → x2.5, 4+ → x3.0 (maksimum).
-   * Uğur gələn kimi 0-a düşür (content.js tərəfindən idarə olunur).
+   * ADAPTIVE BACKOFF — congestion factor.
+   * Delays stretch as serial busy/rate-limit results pile up:
+   * 0 → x1.0, 1 → x1.5, 2 → x2.0, 3 → x2.5, 4+ → x3.0 (maximum).
+   * Resets to 0 as soon as a success arrives (managed by content.js).
    */
   C.congestionMultiplier = function (consecutiveBusy) {
     var n = Math.max(0, consecutiveBusy | 0);

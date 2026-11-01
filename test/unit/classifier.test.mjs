@@ -1,4 +1,4 @@
-/* Classifier testləri (LEGACY_SPEC §5 qaydaları). */
+/* Classifier tests (LEGACY_SPEC §5 rules). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadCore } from './harness.mjs';
@@ -22,12 +22,12 @@ test('classifyHttpError — invalid 400 → fatal', () => {
   assert.equal(r.outcome, 'fatal');
 });
 
-test('classifyHttpError — 401 sessiya → fatal', () => {
+test('classifyHttpError — 401 session → fatal', () => {
   const r = C.classifyHttpError(401, '{"detail":"unauthorized"}', true);
   assert.equal(r.outcome, 'fatal');
 });
 
-test('classifyHttpError — imza xətası → fatal', () => {
+test('classifyHttpError — signature error → fatal', () => {
   const r = C.classifyHttpError(401, '{"detail":"invalid signature (mock)"}', true);
   assert.equal(r.outcome, 'fatal');
   assert.match(r.msg, /signature/i);
@@ -49,37 +49,37 @@ test('classifyStream — captcha → fatal', () => {
   assert.equal(r.outcome, 'fatal');
 });
 
-test('classifyStream — [DONE] olmadan bitdi → retry (no_done)', () => {
+test('classifyStream — ended without [DONE] → retry (no_done)', () => {
   const r = C.classifyStream({ ended: true, sawContent: true, gotDone: false, errText: '' });
   assert.equal(r.outcome, 'retry');
   assert.equal(r.reason, 'no_done');
 });
 
-test('classifyStream — kəsinti (ended=false), qismən cavab → retry', () => {
+test('classifyStream — cut (ended=false), partial response → retry', () => {
   const r = C.classifyStream({ ended: false, sawContent: true, gotDone: false, errText: '' });
   assert.equal(r.outcome, 'retry');
   assert.equal(r.reason, 'stream_cut');
 });
 
-test('classifyStream — boş [DONE] → await_user', () => {
+test('classifyStream — empty [DONE] → await_user', () => {
   const r = C.classifyStream({ ended: true, sawContent: false, gotDone: true, errText: '' });
   assert.equal(r.outcome, 'await_user');
   assert.equal(r.reason, 'empty_stream');
 });
 
-test('classifyStream — uğur', () => {
+test('classifyStream — success', () => {
   const r = C.classifyStream({ ended: true, sawContent: true, gotDone: true, errText: '' });
   assert.equal(r.outcome, 'success');
 });
 
-test('classifyStream — naməlum axın xətası → await_user (avtomatik yox)', () => {
+test('classifyStream — unknown stream error → await_user (no auto)', () => {
   const r = C.classifyStream({ ended: true, sawContent: false, gotDone: true, errText: 'weird unknown condition xyz' });
   assert.equal(r.outcome, 'await_user');
 });
 
 test('extractMessage — /data/message', () => {
-  const m = C.extractMessage({ data: { message: { delta_content: 'salam', done: false } } });
-  assert.equal(m.delta_content, 'salam');
+  const m = C.extractMessage({ data: { message: { delta_content: 'hello', done: false } } });
+  assert.equal(m.delta_content, 'hello');
 });
 
 test('extractMessage — /data/data/message', () => {
@@ -108,22 +108,22 @@ test('classifyBodyText — 200 JSON busy', () => {
   assert.equal(r.outcome, 'retry');
 });
 
-/* ---------- söz sayğacı ---------- */
+/* ---------- word counter ---------- */
 
-test('countWords — boş və boşluqlu mətnlər', () => {
+test('countWords — empty and whitespace texts', () => {
   assert.equal(C.countWords(''), 0);
   assert.equal(C.countWords(null), 0);
   assert.equal(C.countWords('   '), 0);
   assert.equal(C.countWords('\n\t  '), 0);
 });
 
-test('countWords — adi və çoxsətirli mətn', () => {
-  assert.equal(C.countWords('salam'), 1);
-  assert.equal(C.countWords('  bir iki üç  '), 3);
-  assert.equal(C.countWords('bir\niki\tüç\tdörd'), 4);
+test('countWords — plain and multi-line text', () => {
+  assert.equal(C.countWords('hello'), 1);
+  assert.equal(C.countWords('  one two three  '), 3);
+  assert.equal(C.countWords('one\ntwo\tthree\tfour'), 4);
 });
 
-test('countWords — Azərbaycan hərfləri və punktuasiya', () => {
-  assert.equal(C.countWords('Salam, dünya! Necəsən?'), 3);
-  assert.equal(C.countWords('şəkil — fayl.pdf yükləndi'), 4); // «—» ayrı token kimi sayılır
+test('countWords — non-ASCII letters and punctuation', () => {
+  assert.equal(C.countWords('Hello, world! Again?'), 3);
+  assert.equal(C.countWords('image — file.pdf uploaded'), 4); // «—» counts as its own token
 });

@@ -1,7 +1,7 @@
-/* Ayarlar səhifəsi + popup + söz sayğacı screenşotları (prod build ilə).
-   Qeyd: prod build localhost-a inject olmur — build.py-dən sonra dist
-   manifestinə müvəqqəti localhost match əlavə edib screenşot alınır,
-   sonra təmiz prod build bərpa olunur. */
+/* Screenshots of the settings page + popup + word counter (with the prod build).
+   Note: the prod build does not inject into localhost — after build.py we
+   temporarily add a localhost match to the dist manifest to take the shots,
+   then restore the clean prod build. */
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -17,15 +17,15 @@ const BASE = 'http://localhost:8907';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitReady() {
-  try { await fetch(BASE + '/_log'); return null; } catch (e) { /* yoxdur */ }
+  try { await fetch(BASE + '/_log'); return null; } catch (e) { /* none */ }
   const p = spawn('node', [path.join(ROOT, 'test', 'mock', 'server.js')], { stdio: 'ignore' });
   for (let i = 0; i < 60; i++) {
     try { await fetch(BASE + '/_log'); return p; } catch (e) { await sleep(200); }
   }
-  throw new Error('mock server başlamadı');
+  throw new Error('mock server failed to start');
 }
 
-// müvəqqəti localhost match (yalnız screenşot üçün)
+// temporary localhost match (for screenshots only)
 const mf = path.join(EXT, 'manifest.json');
 const orig = readFileSync(mf, 'utf8');
 const m = JSON.parse(orig);
@@ -47,19 +47,19 @@ try {
   await page.waitForFunction(() => window.__zaiExtInject === true, null, { timeout: 8000 });
   await sleep(600);
 
-  // SÖZ SAYĞACI — kompozitor dolu, sağ altda sayğaç çipi görünür
-  await page.fill('#composer', 'Bu mesajda söz sayğacı görünür və canlı sayılır');
+  // WORD COUNTER — composer filled, the counter chip appears bottom-right
+  await page.fill('#composer', 'This message shows the word counter live');
   await page.waitForFunction(() => {
     const el = document.querySelector('.zai-ext-counter');
-    return el && el.style.display !== 'none' && /söz/.test(el.textContent || '');
+    return el && el.style.display !== 'none' && /words/.test(el.textContent || '');
   }, null, { timeout: 8000 });
   await sleep(400);
-  await page.screenshot({ path: path.join(OUT, 'soz-saygaci.png') });
-  console.log('✔ soz-saygaci.png');
+  await page.screenshot({ path: path.join(OUT, 'word-counter.png') });
+  console.log('✔ word-counter.png');
 
-  // canlı vəziyyət üçün bir mesaj göndər (uğurlu) — popup vəziyyəti dolu olsun
+  // send one message (successful) for live state — so the popup shows content
   await page.click('#send');
-  await page.waitForFunction(() => (document.body.innerText || '').includes('Salam! Bu avtomatik'), null, { timeout: 10000 });
+  await page.waitForFunction(() => (document.body.innerText || '').includes('Hello! This is an automatic'), null, { timeout: 10000 });
   await sleep(600);
 
   const sws = ctx.serviceWorkers();
@@ -69,8 +69,8 @@ try {
   await opts.goto('chrome-extension://' + id + '/options/options.html');
   await opts.waitForSelector('#sWordCounter');
   await opts.waitForTimeout(700);
-  await opts.screenshot({ path: path.join(OUT, 'ayarlar-sehifesi.png'), fullPage: true });
-  console.log('✔ ayarlar-sehifesi.png');
+  await opts.screenshot({ path: path.join(OUT, 'settings-page.png'), fullPage: true });
+  console.log('✔ settings-page.png');
 
   const pop = await ctx.newPage();
   await pop.setViewportSize({ width: 384, height: 720 });
@@ -84,5 +84,5 @@ try {
   if (serverProc && serverProc.exitCode === null) serverProc.kill();
   await ctx.close().catch(() => {});
   try { rmSync(profileDir, { recursive: true, force: true }); } catch (e) { /* ignore */ }
-  writeFileSync(mf, orig); // manifesti geri qaytar
+  writeFileSync(mf, orig); // restore the manifest
 }

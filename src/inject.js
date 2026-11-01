@@ -1,19 +1,19 @@
 /*
- * better z.ai — MAIN world inyeksiyası (səhifə konteksti).
+ * better z.ai — MAIN world injection (page context).
  *
- * Vəzifələri:
- *   1. fetch/XHR yolasıyla z.ai completion sorğularını TUTMAQ (POST /api/v2/chat/completions)
- *   2. SSE axınını təhlil edib nəticəni təsnifatlaşdırmaq (content script-ə bildirir)
- *   3. Retry zamanı eyni sorğunu (lazımsa YENİ İMZA ilə) yenidən göndərmək
- *   4. Uğurlu retry-dan sonra /api/v1/chats/{id} persist POST-unu etmək (§7 forması)
+ * Responsibilities:
+ *   1. INTERCEPT z.ai completion requests via fetch/XHR (POST /api/v2/chat/completions)
+ *   2. Parse the SSE stream and classify the outcome (reported to the content script)
+ *   3. On retry, resend the same request (with a FRESH SIGNATURE if needed)
+ *   4. After a successful retry, POST the /api/v1/chats/{id} persist (the §7 shape)
  *
- * DİQQƏT: capture SINXRONDUR — fetch promise-i tətbiqə qaytarılmazdan əvvəl
-// bizim monitor handler-imiz artıq taxılıb (clone() yarışı yoxdur).
+ * NOTE: the capture is SYNCHRONOUS — before the fetch promise is returned to
+// the app, our monitor handler is already attached (no clone() race).
  */
 (function () {
   'use strict';
   if (self.__zaiExtInject) return;
-  self.__zaiExtInject = true; // E2E/diaqnostika işarəsi (window.__zaiExtInject)
+  self.__zaiExtInject = true; // E2E/diagnostics marker (window.__zaiExtInject)
 
   var C = self.__zaiExtCore;
   var ofetch = self.fetch;
@@ -36,7 +36,7 @@
     try { return COMPLETION_RE.test(new URL(u, self.location.href).pathname); } catch (e) { return false; }
   }
 
-  /* SIRAQLI [[k,v]] — URLSearchParams girişin sırasını qoruyur */
+  /* ORDERED [[k,v]] — preserves the order of URLSearchParams entries */
   function parseOrderedQuery(search) {
     var out = [];
     try {
@@ -66,7 +66,7 @@
     return d;
   }
 
-  /* ---------- SSE hadisə emalı (stream scanner və XHR üçün ortaq) ---------- */
+  /* ---------- SSE event handling (shared by stream scanner and XHR) ---------- */
 
   function makeEventState() {
     var st = {
@@ -103,7 +103,7 @@
         }
         return;
       }
-      // parçalı (multi-line) hadisə — LEGACY_SPEC §5 pending birləşdirməsi
+      // multi-line (chunked) event — LEGACY_SPEC §5 pending merge
       if (st.pending) {
         try {
           var joined = JSON.parse(st.pending + '\n' + p);
@@ -130,7 +130,7 @@
     };
   }
 
-  /* Axın (reader) skanerı — watchdog 150s (LEGACY_SPEC §5 idle qaydası) */
+  /* Stream (reader) scanner — 150s watchdog (LEGACY_SPEC §5 idle rule) */
   async function scanBodyStream(body, watchdogMs) {
     var st = makeEventState();
     var dec = new TextDecoder();
@@ -159,7 +159,7 @@
           buf = buf.slice(i + 1);
           st.handleLine(line);
         }
-        if (buf.length > 262144) buf = buf.slice(-4096); // yaddaş qoruması
+        if (buf.length > 262144) buf = buf.slice(-4096); // memory guard
       }
       if (buf) st.handleLine(buf);
     } catch (e) {
@@ -176,7 +176,7 @@
     return res;
   }
 
-  /* Tam mətn (XHR responseText) skanerı */
+  /* Full-text (XHR responseText) scanner */
   function scanFullText(text) {
     var st = makeEventState();
     String(text || '').split('\n').forEach(function (line) { st.handleLine(line); });
@@ -193,7 +193,7 @@
     return null;
   }
 
-  /* ---------- Capture (SİNXRON) ---------- */
+  /* ---------- Capture (SYNCHRONOUS) ---------- */
 
   function summarizeBody(bodyJson) {
     var meta = { promptPreview: '', attachments: [], lastUserText: '' };
@@ -222,7 +222,7 @@
         }
       }
     } catch (e) { /* ignore */ }
-    // uğursuz mesajın TAM mətni (kopyala düyməsi üçün)
+    // the FULL text of the failed message (for the copy button)
     meta.lastUserText = String(meta.lastUserText || '').slice(0, 200000);
     return meta;
   }
@@ -282,8 +282,8 @@
 
   function monitorResponse(rec, res, retryAfterMs) {
     try {
-      POST({ t: 'LOG', line: 'completion → ' + res.status + ' (' + rec.attachments.length + ' əlavə)' });
-      var clone = res.clone(); // bizim handler birincidir — clone təhlükəsizdir
+      POST({ t: 'LOG', line: 'completion → ' + res.status + ' (' + rec.attachments.length + ' attachments)' });
+      var clone = res.clone(); // our handler runs first — clone is safe
       if (!res.ok || res.status >= 400) {
         clone.text().then(function (t) {
           var r = C.classifyHttpError(res.status, t, settings.retryOnHttpError);
@@ -306,7 +306,7 @@
             sawContent: s.sawContent, gotDone: s.gotDone
           });
         }).catch(function () {
-          POST({ t: 'RESULT', src: 'app', id: rec.id, outcome: 'retry', reason: 'stream_cut', msg: 'Axın oxunmadı' });
+          POST({ t: 'RESULT', src: 'app', id: rec.id, outcome: 'retry', reason: 'stream_cut', msg: 'Stream was not read' });
         });
       } else {
         clone.text().then(function (t) {
@@ -317,11 +317,11 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* ---------- Dublikat qorunması ----------
+  /* ---------- Duplicate guard ----------
    *
-   * Retry-dan ƏVVƏL server tarixçəsi yoxlanılır: mesaj onsuz da çatıb və
-   * cavabı yazılıbsa (məs. axın kəsilib, amma server yazıb) yenidən
-   * göndərmək DUB_LİKAT yaradar — ona görə retry ləğv edilir.
+   * BEFORE retrying, the server history is checked: if the message already
+   * arrived and the answer was written (e.g. the stream cut but the server
+   * saved it), resending would create a DUPLICATE — so the retry is cancelled.
    */
   async function checkDuplicate(rec) {
     try {
@@ -343,27 +343,27 @@
     } catch (e) { return false; }
   }
 
-  /* ---------- Retry icraçısı ---------- */
+  /* ---------- Retry executor ---------- */
 
   async function doRetry(id, opts) {
     opts = opts || {};
     var rec = recs.get(id);
     if (!rec) {
-      POST({ t: 'RESULT', src: 'retry', id: id, outcome: 'fatal', reason: 'no_record', msg: 'Qeyd tapılmadı' });
+      POST({ t: 'RESULT', src: 'retry', id: id, outcome: 'fatal', reason: 'no_record', msg: 'Record not found' });
       return;
     }
     if (!rec.canReplay || typeof rec.body !== 'string') {
-      POST({ t: 'RESULT', src: 'retry', id: id, outcome: 'fatal', reason: 'not_replayable', msg: 'Sorğu təkrarlanabilməz' });
+      POST({ t: 'RESULT', src: 'retry', id: id, outcome: 'fatal', reason: 'not_replayable', msg: 'Request is not replayable' });
       return;
     }
-    /* dublikat qorunması — sorğu getməzdən əvvəl serverə baxılır */
+    /* duplicate guard — check the server before the request goes out */
     if (opts.dupGuard && rec.chatId && rec.bodyJson && rec.bodyJson.current_user_message_id) {
       var dup = await checkDuplicate(rec);
       if (dup) {
-        POST({ t: 'LOG', line: 'dublikat qorunması: mesaj onsuz da tarixçədədir — retry ləğv edildi' });
+        POST({ t: 'LOG', line: 'duplicate guard: message already in history — retry cancelled' });
         POST({
           t: 'RESULT', src: 'retry', id: rec.id, outcome: 'success',
-          reason: 'duplicate_avoided', msg: 'Mesaj onsuz da göndərilib (dublikat qorunması)',
+          reason: 'duplicate_avoided', msg: 'Message was already sent (duplicate guard)',
           dupGuard: true
         });
         return;
@@ -384,10 +384,10 @@
           url = r.url;
           headers['x-signature'] = r.signature;
           resigned = true;
-        } catch (e) { /* imza yenilənmədi — orijinal sorğu ilə davam */ }
+        } catch (e) { /* re-sign failed — continue with the original request */ }
       }
     }
-    POST({ t: 'LOG', line: 'retry ' + rec.pathname + (resigned ? ' (imza yeniləndi)' : '') + ' — cəhd ' + (opts.attempt || '?') });
+    POST({ t: 'LOG', line: 'retry ' + rec.pathname + (resigned ? ' (signature refreshed)' : '') + ' — attempt ' + (opts.attempt || '?') });
     try {
       var res = await ofetch(url, {
         method: 'POST',
@@ -428,12 +428,12 @@
       POST({
         t: 'RESULT', src: 'retry', id: rec.id,
         outcome: ab ? 'aborted' : 'retry', reason: 'network',
-        msg: ab ? 'Ləğv edildi' : 'Şəbəkə xətası'
+        msg: ab ? 'Aborted' : 'Network error'
       });
     }
   }
 
-  /* ---------- Persist (uğurlu retry-dan sonra, LEGACY_SPEC §7) ---------- */
+  /* ---------- Persist (after a successful retry, LEGACY_SPEC §7) ---------- */
 
   function authishHeaders(rec, json) {
     var h = {};
@@ -456,7 +456,7 @@
       return;
     }
     try {
-      // 1) Mövcud chat obyektini gətir (title və digər sahələr itməsin)
+      // 1) Fetch the existing chat object (keep title and other fields)
       var chatObj = null;
       try {
         var gr = await ofetch(rec.origin + '/api/v1/chats/' + rec.chatId, {
@@ -471,9 +471,9 @@
             return;
           }
         }
-      } catch (e) { /* davam */ }
+      } catch (e) { /* continue */ }
 
-      // 2) §7 forması: msg-0..msg-N sintetik id-lər + real user/assistant id-ləri
+      // 2) the §7 shape: synthetic ids for msg-0..msg-N + real user/assistant ids
       var now = Date.now();
       var msgs = Array.isArray(rec.bodyJson.messages) ? rec.bodyJson.messages : [];
       var entries = {};
@@ -528,10 +528,10 @@
     }
   }
 
-  /* ---------- Söhbətin ixracı ----------
+  /* ---------- Chat export ----------
    *
-   * GET /api/v1/chats/{id} — mövcud sessiya kukiləri ilə; cavab content
-   * script-ə ötürülür, Markdown orada qurulur (core/mdexport.js).
+   * GET /api/v1/chats/{id} — with the current session cookies; the response
+   * is passed to the content script, Markdown is built there (core/mdexport.js).
    */
   async function doExport(chatId) {
     try {
@@ -551,12 +551,12 @@
     }
   }
 
-  /* ---------- BÜTÜN SÖHBƏTLƏRİN BACKUP-I ----------
+  /* ---------- FULL CHAT BACKUP ----------
    *
    * GET /api/v1/chats/?page=N&type=default → [{id, title, updated_at}]
-   * (protokol spec-i: səhifələmə 1..10, boş səhifə / təkrar ilk id / qısa
-   * səhifə / 300-dən çox halında dayan). Sonra hər chatın detalı ayrıca
-   * gətirilir; progress content script-ə axınla ötürülür.
+   * (protocol spec: pages 1..10, stop on an empty page / repeated first id /
+   * a short page / more than 300 items). Then each chat's detail is fetched
+   * separately; progress is streamed to the content script.
    */
   function authishHeadersAny() {
     var anyRec = null;
@@ -580,10 +580,10 @@
           : (j && Array.isArray(j.data) ? j.data : null));
       if (!arr || !arr.length) break;
       var firstId = arr[0] && arr[0].id;
-      if (firstPrev && firstId === firstPrev) break; // server səhifələməni iqnor edir
+      if (firstPrev && firstId === firstPrev) break; // the server ignores pagination
       firstPrev = firstId;
       out = out.concat(arr);
-      if (arr.length < 20) break; // qısa səhifə — sonuncudur
+      if (arr.length < 20) break; // short page — this is the last one
       if (out.length > 300) break;
     }
     return out.filter(function (c) { return c && c.id; });
@@ -607,7 +607,7 @@
             var j = await r.json();
             chats.push((j && j.chat) ? j.chat : j);
           }
-        } catch (e) { /* bu söhbət alınmadı — qalanı davam etsin */ }
+        } catch (e) { /* this chat failed — let the rest continue */ }
         POST({
           t: 'BACKUP_PROGRESS', done: i + 1, total: target.length,
           title: String(target[i].title || '').slice(0, 60)
@@ -622,7 +622,7 @@
     }
   }
 
-  /* ---------- fetch yolası ---------- */
+  /* ---------- fetch path ---------- */
 
   self.fetch = function () {
     var args = arguments;
@@ -655,7 +655,7 @@
           if (bodyStr !== null) {
             rec = registerCaptureSync(url, method, headers, bodyStr);
           } else {
-            // Request obyekti: body gələndə qeydi tamamlayırıq (retry yalnız ondan sonra mümkün)
+            // Request object: complete the record when the body arrives (retry is only possible after that)
             rec = registerCaptureSync(url, method, headers, null);
             bodyPromise.then(function (b) {
               rec.body = b;
@@ -669,22 +669,22 @@
               rec.promptPreview = sum.promptPreview;
               rec.attachments = sum.attachments;
               POST({ t: 'CAPTURED', meta: stripForContent(rec) });
-            }).catch(function () { /* body oxunmadı */ });
+            }).catch(function () { /* body could not be read */ });
           }
         }
       }
-    } catch (e) { rec = null; /* capture sındı — sorğu normal gedir */ }
+    } catch (e) { rec = null; /* capture broke — the request proceeds normally */ }
 
     var pr;
     try {
       pr = ofetch.apply(self, args);
     } catch (e) {
-      // sync istisna (nadiren) — birbaşa ötürürt
+      // sync exception (rare) — pass it straight through
       throw e;
     }
 
     if (rec) {
-      // bizim handler TƏTBİQİN handler-indən ƏVVƏL taxılır → clone() təhlükəsizdir
+      // our handler is attached BEFORE the app's handler -> clone() is safe
       pr.then(function (res) {
         var ra = parseRetryAfter(res.headers.get('retry-after'));
         monitorResponse(rec, res, ra);
@@ -694,7 +694,7 @@
         POST({
           t: 'RESULT', src: 'app', id: rec.id,
           outcome: ab ? 'aborted' : 'retry', reason: 'network',
-          msg: ab ? 'İstifadəçi ləğv etdi' : 'Şəbəkə xətası'
+          msg: ab ? 'User aborted' : 'Network error'
         });
         throw err;
       });
@@ -705,14 +705,14 @@
           pr.then(function (res) {
             POST({ t: 'LOG', line: 'POST ' + u2.pathname + ' → ' + res.status });
             return res;
-          }, function () { POST({ t: 'LOG', line: 'POST ' + u2.pathname + ' → şəbəkə xətası' }); });
+          }, function () { POST({ t: 'LOG', line: 'POST ' + u2.pathname + ' -> network error' }); });
         }
       } catch (e) { /* ignore */ }
     }
     return pr;
   };
 
-  /* ---------- XHR yolası ---------- */
+  /* ---------- XHR path ---------- */
 
   (function () {
     var OX = self.XMLHttpRequest;
@@ -745,7 +745,7 @@
                 rec.lastText = s.text;
                 var r;
                 if (!x.status) {
-                  r = { outcome: 'retry', reason: 'network', msg: 'Şəbəkə xətası (XHR)' };
+                  r = { outcome: 'retry', reason: 'network', msg: 'Network error (XHR)' };
                 } else if (x.status >= 400) {
                   r = C.classifyHttpError(x.status, x.responseText, settings.retryOnHttpError);
                 } else {
@@ -758,7 +758,7 @@
                 });
               });
               x.addEventListener('abort', function () {
-                POST({ t: 'RESULT', src: 'app', id: rec.id, outcome: 'aborted', reason: 'user', msg: 'Ləğv edildi' });
+                POST({ t: 'RESULT', src: 'app', id: rec.id, outcome: 'aborted', reason: 'user', msg: 'Aborted' });
               });
             } else {
               x.addEventListener('loadend', function () {
@@ -772,14 +772,14 @@
     };
   })();
 
-  /* ---------- WebSocket müşahidəsi (yalnız jurnal) ---------- */
+  /* ---------- WebSocket observation (logging only) ---------- */
   (function () {
     var OW = self.WebSocket;
     if (!OW || OW.__zaiWrapped) return;
     try {
       function WSWrapper(url, protocols) {
         var ws = protocols === undefined ? new OW(url) : new OW(url, protocols);
-        POST({ t: 'LOG', line: 'WS açıldı: ' + url });
+        POST({ t: 'LOG', line: 'WS opened: ' + url });
         var os = ws.send;
         var n = 0;
         ws.send = function (d) {
@@ -787,7 +787,7 @@
           if (n <= 3) POST({ t: 'LOG', line: 'WS send #' + n + ': ' + (typeof d === 'string' ? String(d).slice(0, 100) : '[binary]') });
           return os.apply(this, arguments);
         };
-        ws.addEventListener('close', function () { POST({ t: 'LOG', line: 'WS bağlandı: ' + url }); });
+        ws.addEventListener('close', function () { POST({ t: 'LOG', line: 'WS closed: ' + url }); });
         return ws;
       }
       WSWrapper.prototype = OW.prototype;
@@ -797,7 +797,7 @@
     } catch (e) { /* ignore */ }
   })();
 
-  /* ---------- Content script-dən gələn əmrlər ---------- */
+  /* ---------- Commands from the content script ---------- */
 
   self.addEventListener('message', function (ev) {
     if (ev.source !== self) return;
@@ -830,5 +830,5 @@
     }
   });
 
-  POST({ t: 'LOG', line: 'inject hazırdır (' + self.location.host + ')' });
+  POST({ t: 'LOG', line: 'inject ready (' + self.location.host + ')' });
 })();

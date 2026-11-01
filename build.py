@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""better z.ai — build skripti.
+"""better z.ai — build script.
 
-İstifadə:
-    python3 build.py          → prod build (dist/chrome + dist/firefox + zip-lər)
-    python3 build.py --test   → E2E build (localhost:8907 match, sürətli backoff)
+Usage:
+    python3 build.py          -> prod build (dist/chrome + dist/firefox + zips)
+    python3 build.py --test   -> E2E build (localhost:8907 match, fast backoff)
 
-Mühüm: MAIN world üçün tək fayl (inject.bundle.js = classifier+sign+inject)
-yaranır — ISOLATED world ilə fayl paylaşımı Chrome-da dedupe problemidir
-(eyni fayl hər iki qrupda olduqda yalnız birinci world-də icra olunur).
+Important: a single file is produced for the MAIN world
+(inject.bundle.js = classifier+sign+inject) — sharing files with the
+ISOLATED world is a Chrome dedupe problem (when the same file is in both
+groups it only executes in the first world).
 """
 import hashlib
 import json
@@ -30,11 +31,11 @@ PROD_DEFAULTS = {
     "draftGuard": True, "draftMaxAgeH": 72,
     "snippetsEnabled": True,
     "snippets": [
-        {"name": "Qısa cavab", "text": "Zəhmət olmasa qısa və konkret cavab ver."},
-        {"name": "Kod izahı", "text": "Bu kodu addım-addım izah et:"}
+        {"name": "Short answer", "text": "Please answer briefly and to the point."},
+        {"name": "Code explanation", "text": "Explain this code step by step:"}
     ],
     "notifyDone": True, "closePopups": True,
-    "popupPatterns": ["peak hours", "currently in peak", "pik saat", "high traffic", "rate limit"],
+    "popupPatterns": ["peak hours", "currently in peak", "high traffic", "rate limit"],
     "serialRetries": True, "dupGuard": True,
     "shortcutsEnabled": True, "wordCounter": True, "notifySound": False,
     "adaptiveBackoff": True, "backupMaxChats": 50
@@ -48,11 +49,11 @@ TEST_DEFAULTS = {
     "draftGuard": True, "draftMaxAgeH": 72,
     "snippetsEnabled": True,
     "snippets": [
-        {"name": "Qısa cavab", "text": "Zəhmət olmasa qısa və konkret cavab ver."},
-        {"name": "Kod izahı", "text": "Bu kodu addım-addım izah et:"}
+        {"name": "Short answer", "text": "Please answer briefly and to the point."},
+        {"name": "Code explanation", "text": "Explain this code step by step:"}
     ],
     "notifyDone": True, "closePopups": True,
-    "popupPatterns": ["peak hours", "currently in peak", "pik saat", "high traffic", "rate limit"],
+    "popupPatterns": ["peak hours", "currently in peak", "high traffic", "rate limit"],
     "serialRetries": True, "dupGuard": True,
     "shortcutsEnabled": True, "wordCounter": True, "notifySound": False,
     "adaptiveBackoff": True, "backupMaxChats": 50
@@ -65,7 +66,7 @@ def cat(paths):
 
 def write_defaults(out_dir: Path) -> None:
     d = TEST_DEFAULTS if TEST else PROD_DEFAULTS
-    js = ("/* avtomatik yaradılıb — build.py */\n"
+    js = ("/* auto-generated — build.py */\n"
           "(function (r) { r.__zaiExtDefaults = ")
     js += json.dumps(d, ensure_ascii=False)
     js += "; })(typeof self !== 'undefined' ? self : globalThis);\n"
@@ -79,12 +80,12 @@ def build_browser(browser: str) -> dict:
     out.mkdir(parents=True)
 
     (out / "core").mkdir()
-    # ISOLATED world faylları (MAIN ilə paylaşılmır!)
+    # ISOLATED world files (NOT shared with MAIN!)
     for f in ["classifier.js", "backoff.js", "drafts.js", "preview.js", "popupcloser.js", "mdexport.js"]:
         shutil.copy2(SRC / "core" / f, out / "core" / f)
     write_defaults(out)
 
-    # MAIN world tək bundle: classifier + sign + inject
+    # MAIN world single bundle: classifier + sign + inject
     (out / "inject.bundle.js").write_text(
         cat([SRC / "core" / "classifier.js", SRC / "core" / "sign.js", SRC / "inject.js"]),
         encoding="utf-8"
@@ -93,7 +94,7 @@ def build_browser(browser: str) -> dict:
     for f in ["content.js", "pill.css"]:
         shutil.copy2(SRC / f, out / f)
     if browser == "firefox":
-        # MV2: world:MAIN dəstəklənmir → WAR + script-teq bootstrap
+        # MV2: world:MAIN unsupported -> WAR + script-tag bootstrap
         shutil.copy2(SRC / "ff-bootstrap.js", out / "ff-bootstrap.js")
     shutil.copytree(SRC / "popup", out / "popup")
     shutil.copytree(SRC / "options", out / "options")
@@ -107,7 +108,7 @@ def build_browser(browser: str) -> dict:
     m = json.loads((SRC / f"manifest.{browser}.json").read_text(encoding="utf-8"))
     if TEST:
         for cs in m.get("content_scripts", []):
-            # localhost hər portla (portlu pattern Firefox-da qəbul olunmaya bilər)
+            # localhost on any port (a port-specific pattern may be rejected by Firefox)
             cs["matches"] = ["http://localhost/*"] + cs["matches"]
     (out / "manifest.json").write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
     return m
@@ -130,8 +131,8 @@ def zip_browser(browser: str) -> Path:
 def main() -> None:
     mc = build_browser("chrome")
     mf = build_browser("firefox")
-    assert mc["version"] == mf["version"], "manifest versiyaları fərqlənir!"
-    assert mc["name"] == mf["name"], "manifest adları fərqlənir!"
+    assert mc["version"] == mf["version"], "manifest versions differ!"
+    assert mc["name"] == mf["name"], "manifest names differ!"
     mode = "TEST" if TEST else "PROD"
     print(f"build {mode} → dist/chrome, dist/firefox")
 
@@ -139,7 +140,7 @@ def main() -> None:
         for b in ["chrome", "firefox"]:
             zp = zip_browser(b)
             sha = hashlib.sha256(zp.read_bytes()).hexdigest()
-            print(f"  {zp.name}  {zp.stat().st_size} bayt  sha256={sha[:16]}…")
+            print(f"  {zp.name}  {zp.stat().st_size} bytes  sha256={sha[:16]}…")
         zdir = DIST / "zips"
         lines = []
         for p in sorted(zdir.glob("*.zip")):
@@ -149,7 +150,7 @@ def main() -> None:
         fx = zdir / "better-z.ai-firefox.zip"
         xpi = zdir / "better-z.ai-firefox.xpi"
         shutil.copy2(fx, xpi)
-        print(f"  {xpi.name} (surət)")
+        print(f"  {xpi.name} (copy)")
 
 
 if __name__ == "__main__":

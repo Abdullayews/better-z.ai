@@ -23,10 +23,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Asılıqlar
+      - name: Dependencies
         run: npm ci
 
-      - name: Brauzerlər + alətlər
+      - name: Browsers + tools
         run: |
           npx playwright install --with-deps chromium
           npx playwright install firefox
@@ -37,7 +37,7 @@ jobs:
       - name: Test build
         run: python3 build.py --test
 
-      - name: Unit testlər (imza cross-implementation daxil)
+      - name: Unit tests (incl. signature cross-implementation)
         run: node --test 'test/unit/*.test.mjs'
 
       - name: Chrome E2E (xvfb)
@@ -52,7 +52,7 @@ jobs:
       - name: Prod build
         run: python3 build.py
 
-      - name: Zip-ləri yüklə
+      - name: Upload zips
         uses: actions/upload-artifact@v4
         with:
           name: better-zai-zips

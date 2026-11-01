@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="az">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>better z.ai — Ayarlar</title>
+<title>better z.ai — Settings</title>
 <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -11,160 +11,160 @@
     <img src="../icons/icon48.png" alt="" class="mark">
     <div>
       <h1>better <span>z.ai</span></h1>
-      <p class="sub">Ayarlar — dəyişikliklər avtomatik yadda saxlanılır və açıq səhifələrə dərhal tətbiq olunur.</p>
+      <p class="sub">Settings — changes are saved automatically and applied to open pages instantly.</p>
     </div>
   </header>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Preview nəzarəti</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Preview control</h2>
     <div class="row">
       <div class="tx">
-        <b>Fayl preview-lərinin avtomatik açılmasını əngəllə</b>
-        <small>Aktiv (standart): preview pəncərələri öz-özünə açılmır — <b>yalnız siz fayla/şəkilə
-        klik etdikdə</b> açılır. Cavab generasiyası bitəndə və ya fayl əlavə olunanda saytın özü
-        açdığı preview-lər dərhal bağlanılır; sizin kliklə açdıqlarınız toxunulmaz qalır.</small>
+        <b>Block file previews from opening automatically</b>
+        <small>On (default): preview windows never open on their own — <b>only when you
+        click a file/image</b> do they open. Previews the site itself opens when
+        generation finishes or a file is added are closed instantly; the ones you opened by clicking stay untouched.</small>
       </div>
       <label class="sw"><input type="checkbox" id="sBlockPreview"><span class="sw-t"><span class="sw-k"></span></span></label>
     </div>
   </section>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Qaralama mühafizəsi</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Draft guard</h2>
     <div class="row">
       <div class="tx">
-        <b>Kompozitor mətnini avtomatik yadda saxla</b>
-        <small>Yazdığınız mesaj müntəzəm yadda saxlanılır; səhifə yenilənəndə, brauzer qəflən
-        bağlananda "Qaralama tapıldı — Bərpa et" təklifi görünür. Qaralama yalnız brauzerin
-        yaddaşında saxlanılır, heç bir yerə göndərilmir.</small>
+        <b>Save composer text automatically</b>
+        <small>Your message is saved regularly; when the page reloads or the browser
+        closes unexpectedly, a "Draft found — Restore" offer appears. Drafts are kept
+        only in browser storage and never sent anywhere.</small>
       </div>
       <label class="sw"><input type="checkbox" id="sDraftGuard"><span class="sw-t"><span class="sw-k"></span></span></label>
     </div>
     <div class="grid" style="margin-top:14px">
-      <label>Qaralamanın maksimum yaşı (saat)<input type="number" id="sDraftMaxAge" min="1" max="720"></label>
+      <label>Draft maximum age (hours)<input type="number" id="sDraftMaxAge" min="1" max="720"></label>
     </div>
   </section>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Snippet kitabxanası</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Snippet library</h2>
     <div class="row">
       <div class="tx">
-        <b>Kompozitor yanında "⚡ Tez istifadə" düyməsi</b>
-        <small>Seçdiyiniz şablonları bir kliklə mesaj sahəsinə yerləşdirin. Snippetləri aşağıda
-        əlavə edib redaktə edə bilərsiniz.</small>
+        <b>"⚡ Quick use" button next to the composer</b>
+        <small>Insert your templates into the message box with one click. Snippets can be
+        added and edited below.</small>
       </div>
       <label class="sw"><input type="checkbox" id="sSnippets"><span class="sw-t"><span class="sw-k"></span></span></label>
     </div>
     <div id="snipList" class="snips"></div>
-    <button id="btnAddSnippet" class="add" type="button">+ Yeni snippet</button>
+    <button id="btnAddSnippet" class="add" type="button">+ New snippet</button>
   </section>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Avtomatik yenidən göndərmə</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Automatic resend</h2>
     <div class="grid">
-      <label>Maksimum cəhd sayı<input type="number" id="sMaxRetries" min="1" max="30"></label>
-      <label>İlkin gecikmə (ms)<input type="number" id="sInitialDelay" min="300" step="100"></label>
-      <label>Backoff amili<input type="number" id="sFactor" min="1" step="0.1"></label>
-      <label>Maksimum gecikmə (ms)<input type="number" id="sMaxDelay" min="1000" step="1000"></label>
+      <label>Maximum attempts<input type="number" id="sMaxRetries" min="1" max="30"></label>
+      <label>Initial delay (ms)<input type="number" id="sInitialDelay" min="300" step="100"></label>
+      <label>Backoff factor<input type="number" id="sFactor" min="1" step="0.1"></label>
+      <label>Maximum delay (ms)<input type="number" id="sMaxDelay" min="1000" step="1000"></label>
     </div>
     <div class="switch-grid">
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sResign"><span class="sw-t"><span class="sw-k"></span></span></label><span>İmza yeniləməsi</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sPersist"><span class="sw-t"><span class="sw-k"></span></span></label><span>Tarixçəni yaz (persist)</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sAutoReload"><span class="sw-t"><span class="sw-k"></span></span></label><span>Uğurdan sonra səhifəni yenilə</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sNotify"><span class="sw-t"><span class="sw-k"></span></span></label><span>Bildirişlər</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sNotifyDone"><span class="sw-t"><span class="sw-k"></span></span></label><span>"Cavab hazırdır" bildirişi</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sNotifySound"><span class="sw-t"><span class="sw-k"></span></span></label><span>"Cavab hazırdır" səsi</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sSerial"><span class="sw-t"><span class="sw-k"></span></span></label><span>Ardıcıl retry (sıra qorunur)</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sDupGuard"><span class="sw-t"><span class="sw-k"></span></span></label><span>Dublikat qorunması</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sAdaptive"><span class="sw-t"><span class="sw-k"></span></span></label><span>Adaptiv backoff</span></div>
-      <div class="sw-line"><label class="sw"><input type="checkbox" id="sDomFallback"><span class="sw-t"><span class="sw-k"></span></span></label><span>DOM ehtiyat rejimi</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sResign"><span class="sw-t"><span class="sw-k"></span></span></label><span>Signature refresh</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sPersist"><span class="sw-t"><span class="sw-k"></span></span></label><span>Write history (persist)</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sAutoReload"><span class="sw-t"><span class="sw-k"></span></span></label><span>Reload the page after success</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sNotify"><span class="sw-t"><span class="sw-k"></span></span></label><span>Notifications</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sNotifyDone"><span class="sw-t"><span class="sw-k"></span></span></label><span>"Response is ready" notification</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sNotifySound"><span class="sw-t"><span class="sw-k"></span></span></label><span>"Response is ready" sound</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sSerial"><span class="sw-t"><span class="sw-k"></span></span></label><span>Serial retries (order preserved)</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sDupGuard"><span class="sw-t"><span class="sw-k"></span></span></label><span>Duplicate guard</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sAdaptive"><span class="sw-t"><span class="sw-k"></span></span></label><span>Adaptive backoff</span></div>
+      <div class="sw-line"><label class="sw"><input type="checkbox" id="sDomFallback"><span class="sw-t"><span class="sw-k"></span></span></label><span>DOM fallback mode</span></div>
     </div>
-    <p class="note">📎 Mesajın attachment-larla birlikdə qorunub bərpa edilməsi <b>həmişə aktivdir</b> —
-    bu əsas funksiya söndürülə bilməz. Uğursuz mesajın tam mətni pill-dəki <b>⧉</b> düyməsi və ya
-    popup ilə hər an kopyalana bilər.</p>
+    <p class="note">📎 Capturing and restoring your message with its attachments is <b>always on</b> —
+    this core feature cannot be disabled. The full text of a failed message can be copied at any
+    time via the <b>⧉</b> button in the pill or from the popup.</p>
   </section>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Popap bağlayıcı</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Popup closer</h2>
     <div class="row">
       <div class="tx">
-        <b>"Currently in peak hours" kimi popapları avtomatik bağla</b>
-        <small>z.ai bəzən öz-özünə xəbərdarlıq/reklam pəncərələri açır (pik saatları, limit
-        xəbərdarlıqları…). Bu pəncərələr açar-sözlərə uyğun gələndə avtomatik bağlanılır.
-        <b>Parol soruşan və ya mətn daxiletmə sahəsi olan pəncərələr heç vaxt bağlanmır.</b></small>
+        <b>Auto-close popups like "Currently in peak hours"</b>
+        <small>z.ai sometimes opens warning/ad windows on its own (peak hours, rate-limit
+        warnings…). Windows matching the keywords are closed automatically.
+        <b>Windows asking for a password or containing a text input are never closed.</b></small>
       </div>
       <label class="sw"><input type="checkbox" id="sClosePopups"><span class="sw-t"><span class="sw-k"></span></span></label>
     </div>
-    <label class="arealbl">Açar sözlər (hər biri ayrı sətir — mətn bu sözlərdən birini içerəndə bağlanılır):
+    <label class="arealbl">Keywords (one per line — a window is closed when its text contains one of them):
       <textarea id="sPopupPatterns" rows="5" placeholder="peak hours&#10;currently in peak"></textarea>
     </label>
   </section>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>Söz sayğacı</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>Word counter</h2>
     <div class="row">
       <div class="tx">
-        <b>Kompozitor yanında canlı söz/simvol sayı</b>
-        <small>Mesaj yazarkən sağ altda kiçik göstərici görünür: "12 söz · 84 simvol".
-        Uzun prompt-ların ölçüsünü izləmək üçün.</small>
+        <b>Live word/character count next to the composer</b>
+        <small>A small indicator appears in the bottom-right corner while typing:
+        "12 words · 84 chars". Handy for sizing long prompts.</small>
       </div>
       <label class="sw"><input type="checkbox" id="sWordCounter"><span class="sw-t"><span class="sw-k"></span></span></label>
     </div>
   </section>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Tam backup</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Full backup</h2>
     <div class="row">
       <div class="tx">
-        <b>BÜTÜN söhbətlərin ehtiyat nüsxəsi (.md + .json)</b>
-        <small>Popup → "Tam backup" — chat siyahısı və hər bir söhbətin tam tarixçəsi endirilir:
-        insan-oxunaqlı <b>Markdown</b> + orijinal strukturlu <b>JSON</b>. Fayllar yalnız sizin
-        kompyuterə yazılır, heç bir yerə göndərilmir.</small>
+        <b>Back up ALL chats (.md + .json)</b>
+        <small>Popup → "Full backup" — downloads the chat list and the full history of every
+        chat: human-readable <b>Markdown</b> + original structured <b>JSON</b>. Files are written
+        only to your computer and sent nowhere.</small>
       </div>
     </div>
     <div class="grid" style="margin-top:14px">
-      <label>Maksimum söhbət sayı (backup başına)<input type="number" id="sBackupMaxChats" min="1" max="300"></label>
+      <label>Maximum chats (per backup)<input type="number" id="sBackupMaxChats" min="1" max="300"></label>
     </div>
   </section>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>Klaviatura qısayolları</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>Keyboard shortcuts</h2>
     <div class="row">
       <div class="tx">
-        <b>Qısayolları aktivləşdir</b>
-        <small>z.ai tab-i açıq olanda işləyir:</small>
+        <b>Enable shortcuts</b>
+        <small>Works while a z.ai tab is open:</small>
       </div>
       <label class="sw"><input type="checkbox" id="sShortcuts"><span class="sw-t"><span class="sw-k"></span></span></label>
     </div>
     <ul class="keys">
-      <li><kbd>Alt</kbd>+<kbd>R</kbd> — gözləyən mesajı dərhal yenidən göndər ("İndi cəhd et")</li>
-      <li><kbd>Alt</kbd>+<kbd>P</kbd> — avtomatik retry-ləri dayandır / davam etdir</li>
-      <li><kbd>Alt</kbd>+<kbd>E</kbd> — cari söhbəti Markdown (.md) kimi ixrac et</li>
+      <li><kbd>Alt</kbd>+<kbd>R</kbd> — resend the pending message immediately ("Retry now")</li>
+      <li><kbd>Alt</kbd>+<kbd>P</kbd> — pause/resume automatic retries</li>
+      <li><kbd>Alt</kbd>+<kbd>E</kbd> — export the current chat as Markdown (.md)</li>
     </ul>
-    <p class="note">Qısayolları brauzerin öz menecerində də dəyişə bilərsiniz —
+    <p class="note">You can also change the shortcuts in your browser's own manager —
     Chrome: <b>chrome://extensions/shortcuts</b>, Firefox: <b>about:addons</b> →
     Extensions → Manage Extension Shortcuts.</p>
   </section>
 
   <section class="card">
-    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Ehtiyat nüsxə və diaqnostika</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Backup and diagnostics</h2>
     <div class="actions" style="margin:0">
-      <button id="btnExportCfg" class="ghost">⤓ Ayarları ixrac et (JSON)</button>
-      <label class="ghost file">⤒ Ayarları idxal et
+      <button id="btnExportCfg" class="ghost">⤓ Export settings (JSON)</button>
+      <label class="ghost file">⤒ Import settings
         <input type="file" id="fileImportCfg" accept="application/json,.json">
       </label>
       <span id="impNote"></span>
     </div>
     <div class="actions">
-      <button id="btnDiag" class="ghost">🧪 Diaqnostika məlumatı (JSON)</button>
+      <button id="btnDiag" class="ghost">🧪 Diagnostics data (JSON)</button>
     </div>
   </section>
 
   <div class="actions">
-    <button id="btnReset">Standart ayarlara qaytar</button>
-    <span id="savedNote">✓ Yadda saxlanıldı</span>
+    <button id="btnReset">Restore defaults</button>
+    <span id="savedNote">✓ Saved</span>
   </div>
 
-  <footer>better z.ai · yalnız z.ai domenində və alt domenlərində işləyir · məlumat yalnız lokalda saxlanılır</footer>
+  <footer>better z.ai · works only on z.ai and its subdomains · data is stored locally only</footer>
 </div>
 <script src="../core/defaults.js"></script>
 <script src="options.js"></script>

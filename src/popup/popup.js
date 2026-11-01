@@ -1,4 +1,4 @@
-/* better z.ai — popup skripti (təmiz: vəziyyət + tez ayarlar + alətlər) */
+/* better z.ai — popup script (clean: status + quick settings + tools) */
 (function () {
   'use strict';
 
@@ -16,23 +16,23 @@
   var saveTimer = null;
 
   var stateLabels = {
-    monitoring: ['Gözlənilir', ''],
-    pending_retry: ['Yenidən göndərilir', 'wait'],
-    retrying: ['Göndərilir…', 'busy'],
-    persisting: ['Yazılır…', 'busy'],
-    await_user: ['Cavab alınmadı', 'warn'],
-    failed_fatal: ['Xəta (avto yoxdur)', 'err'],
-    failed_final: ['Cəhdlər bitdi', 'err'],
-    succeeded: ['✓ Göndərildi', 'ok']
+    monitoring: ['Monitoring', ''],
+    pending_retry: ['Resending', 'wait'],
+    retrying: ['Sending…', 'busy'],
+    persisting: ['Saving…', 'busy'],
+    await_user: ['No response received', 'warn'],
+    failed_fatal: ['Error (no auto-retry)', 'err'],
+    failed_final: ['Attempts exhausted', 'err'],
+    succeeded: ['✓ Sent', 'ok']
   };
 
   function attText(list) {
     if (!list || !list.length) return '';
-    return '📎 ' + list.length + ' əlavə (' + list.map(function (a) { return a.type; }).join(',') + ')';
+    return '📎 ' + list.length + ' attachments (' + list.map(function (a) { return a.type; }).join(',') + ')';
   }
 
   function askContent(cb) {
-    // "tabs" permission-u yoxdur → canlı tab-i background-dan soruşuruq
+    // no "tabs" permission -> ask the background for the live tab
     try {
       chrome.runtime.sendMessage({ type: 'GET_TAB' }, function (r) {
         var tab = r && r.tab;
@@ -53,7 +53,7 @@
     if (!list || !list.length) {
       var d = document.createElement('div');
       d.className = 'empty';
-      d.textContent = 'Gözləyən mesaj yoxdur — hər şey qaydasındadır.';
+      d.textContent = 'No pending messages — all clear.';
       box.appendChild(d);
       return;
     }
@@ -72,7 +72,7 @@
       var msg = document.createElement('span');
       msg.className = 'msg';
       msg.title = r.lastMsg || '';
-      msg.textContent = r.promptPreview || '(boş mesaj)';
+      msg.textContent = r.promptPreview || '(empty message)';
       row1.appendChild(badge);
       row1.appendChild(msg);
       card.appendChild(row1);
@@ -87,20 +87,20 @@
         act.className = 'act';
         var b1 = document.createElement('button');
         b1.className = 'primary';
-        b1.textContent = 'İndi cəhd et';
+        b1.textContent = 'Retry now';
         b1.setAttribute('data-act', 'retry');
         b1.setAttribute('data-id', r.id);
         act.appendChild(b1);
         if (r.state === 'failed_fatal' || r.state === 'failed_final' || r.state === 'await_user') {
           var b0 = document.createElement('button');
-          b0.textContent = '⧉ Mətni kopyala';
-          b0.title = 'Mesajın tam mətnini mübadilə buferinə köçür';
+          b0.textContent = '⧉ Copy text';
+          b0.title = 'Copy the full message text to the clipboard';
           b0.setAttribute('data-act', 'copy');
           b0.setAttribute('data-id', r.id);
           act.appendChild(b0);
         }
         var b2 = document.createElement('button');
-        b2.textContent = 'Sil';
+        b2.textContent = 'Delete';
         b2.setAttribute('data-act', 'del');
         b2.setAttribute('data-id', r.id);
         act.appendChild(b2);
@@ -117,8 +117,8 @@
           var txt = item.lastUserText || item.promptPreview || '';
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(txt).then(function () {
-              btn.textContent = '✓ Kopyalandı';
-              setTimeout(function () { btn.textContent = '⧉ Mətni kopyala'; }, 1200);
+              btn.textContent = '✓ Copied';
+              setTimeout(function () { btn.textContent = '⧉ Copy text'; }, 1200);
             }, function () { /* ignore */ });
           }
           return;
@@ -155,23 +155,23 @@
   }
 
   function updatePauseBtn() {
-    els.pauseLabel.textContent = paused ? 'Retry-ləri davam etdir' : 'Retry-ləri dayandır';
+    els.pauseLabel.textContent = paused ? 'Resume retries' : 'Pause retries';
   }
 
   function refresh() {
     askContent(function (resp, tab) {
       if (resp && resp.ok) {
-        els.conn.textContent = 'z.ai səhifəsi: aktiv';
+        els.conn.textContent = 'z.ai page: active';
         els.conn.className = 'conn ok';
         renderRecords(resp.records);
       } else if (tab) {
-        els.conn.textContent = 'səhifə tapıldı, amma cavab vermir — yeniləyin';
+        els.conn.textContent = 'page found but not responding — reload it';
         els.conn.className = 'conn err';
         chrome.storage.local.get(['records'], function (got) {
           renderRecords(recordsFromStorage(got));
         });
       } else {
-        els.conn.textContent = 'z.ai açıq deyil — mesaj göndərmək üçün səhifəni açın';
+        els.conn.textContent = 'z.ai is not open — open the page to send messages';
         els.conn.className = 'conn err';
         chrome.storage.local.get(['records'], function (got) {
           renderRecords(recordsFromStorage(got));
@@ -193,7 +193,7 @@
     });
   }
 
-  /* tez açarlar — dərhal yadda saxlanır (mövcud ayarlarla birləşir) */
+  /* quick toggles - saved immediately (merged with current settings) */
   function saveQuick() {
     chrome.storage.local.get(['settings'], function (got) {
       var cur = (got && got.settings) || {};
@@ -215,7 +215,7 @@
   [els.sBlockPreview, els.sClosePopups, els.sDraftGuard, els.sSnippets]
     .forEach(function (el) { el.addEventListener('change', onQuickChange); });
 
-  /* qlobal pauza — storage üzərindən (content script dərhal reaksiya verir) */
+  /* global pause — via storage (the content script reacts instantly) */
   els.btnPause.addEventListener('click', function () {
     paused = !paused;
     chrome.storage.local.set({ paused: paused }, function () {
@@ -224,14 +224,14 @@
     });
   });
 
-  /* söhbətin ixracı — content script → MAIN world GET → Markdown */
+  /* chat export — content script → MAIN world GET → Markdown */
   els.btnExport.addEventListener('click', function () {
     var span = els.btnExport.querySelector('span:not(.dim)');
     var orig = span.textContent;
-    span.textContent = '… ixrac olunur';
+    span.textContent = '… exporting';
     askContent(function (resp, tab) {
       if (!tab) {
-        span.textContent = '✘ səhifə tapılmadı';
+        span.textContent = '✘ page not found';
         setTimeout(function () { span.textContent = orig; }, 1500);
         return;
       }
@@ -239,7 +239,7 @@
         chrome.tabs.sendMessage(tab.id, { cmd: 'EXPORT_CHAT' }, function () {
           if (chrome.runtime.lastError) { /* ignore */ }
           setTimeout(function () {
-            span.textContent = '✓ İxrac olundu';
+            span.textContent = '✓ Exported';
             setTimeout(function () { span.textContent = orig; }, 1500);
             refresh();
           }, 900);
@@ -248,16 +248,16 @@
     });
   });
 
-  /* BÜTÜN söhbətlərin backup-ı — content script → MAIN world
-     (chat siyahısı + detallar) → .md + .json faylları endirilir */
+  /* FULL chat backup — content script → MAIN world
+     (chat list + details) → .md + .json files are downloaded */
   els.btnBackup.addEventListener('click', function () {
     var span = els.btnBackup.querySelector('span:not(.dim)');
     var orig = span.textContent;
-    span.textContent = '… backup gedir';
+    span.textContent = '… backing up';
     els.btnBackup.disabled = true;
     askContent(function (resp, tab) {
       if (!tab) {
-        span.textContent = '✘ səhifə tapılmadı';
+        span.textContent = '✘ page not found';
         els.btnBackup.disabled = false;
         setTimeout(function () { span.textContent = orig; }, 1800);
         return;
@@ -265,7 +265,7 @@
       var t0 = Date.now();
       try {
         chrome.tabs.sendMessage(tab.id, { cmd: 'EXPORT_ALL' }, function () {
-          if (chrome.runtime.lastError) { /* cavab gəlməyə bilər — storage-dan izləyirik */ }
+          if (chrome.runtime.lastError) { /* a reply may not come — we watch via storage */ }
         });
       } catch (e) { /* ignore */ }
       var iv = setInterval(function () {
@@ -273,12 +273,12 @@
           var lb = g && g.lastBackup;
           if (lb && lb.at > t0 - 2000) {
             clearInterval(iv);
-            span.textContent = '✓ ' + (lb.count || 0) + ' söhbət backup olundu';
+            span.textContent = '✓ ' + (lb.count || 0) + ' chats backed up';
             els.btnBackup.disabled = false;
             setTimeout(function () { span.textContent = orig; }, 2600);
           } else if (Date.now() - t0 > 120000) {
             clearInterval(iv);
-            span.textContent = '✘ vaxt bitdi';
+            span.textContent = '✘ timed out';
             els.btnBackup.disabled = false;
             setTimeout(function () { span.textContent = orig; }, 2200);
           }
@@ -296,7 +296,7 @@
     }
   });
 
-  /* pauza dəyişikliyini canlı izlə */
+  /* watch pause changes live */
   try {
     chrome.storage.onChanged.addListener(function (ch, area) {
       if (area !== 'local') return;

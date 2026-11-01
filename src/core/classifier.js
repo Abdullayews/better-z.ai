@@ -1,8 +1,8 @@
 /*
- * better z.ai — ortaq təsnifat modulu.
- * MAIN world, ISOLATED world və Node vm test kontekstində işləyir.
- * Mənbə: LEGACY_SPEC §5 (zai_protokol_spec.md) — z.ai SSE protokolunun dəqiq
- * xəta təsnifatı əsasında.
+ * better z.ai — shared classification module.
+ * Works in the MAIN world, the ISOLATED world, and Node vm test contexts.
+ * Source: LEGACY_SPEC §5 (zai_protokol_spec.md) — based on the exact
+ * error classification of the z.ai SSE protocol.
  */
 (function (root) {
   'use strict';
@@ -27,10 +27,10 @@
     return t.length > n ? t.slice(0, n) + '…' : t;
   };
 
-  /* HTTP status + body əsasında təsnifat (SSE-olmayan cavablar, 4xx/5xx) */
+  /* Classification by HTTP status + body (non-SSE responses, 4xx/5xx) */
   C.classifyHttpError = function (status, bodyText, retryOnHttpError) {
     var t = String(bodyText || '');
-    // WAF: 403/405/429/509 + HTML gövdə → retry (LEGACY_SPEC §8)
+    // WAF: 403/405/429/509 + HTML body → retry (LEGACY_SPEC §8)
     if ((status === 403 || status === 405 || status === 429 || status === 509) && C.isHtmlBody(t)) {
       return { outcome: 'retry', reason: 'waf', msg: 'WAF blok (HTML)' };
     }
@@ -42,7 +42,7 @@
     return { outcome: 'fatal', reason: 'http_' + status, msg: 'HTTP ' + status };
   };
 
-  /* HTTP 200 + JSON gövdə (event-stream deyil) */
+  /* HTTP 200 + JSON body (not event-stream) */
   C.classifyBodyText = function (bodyText) {
     var t = String(bodyText || '');
     if (BUSY_RE.test(t)) return { outcome: 'retry', reason: 'busy', msg: C.firstLine(t, 140) };
@@ -51,7 +51,7 @@
   };
 
   /*
-   * SSE axınının nəticəsi.
+   * Outcome of the SSE stream.
    * s: { ended, sawContent, gotDone, errText, hadLines }
    */
   C.classifyStream = function (s) {
@@ -61,13 +61,13 @@
       return { outcome: 'await_user', reason: 'stream_error', msg: C.firstLine(s.errText, 140) };
     }
     if (!s.ended) {
-      return { outcome: 'retry', reason: 'stream_cut', msg: s.sawContent ? 'Axın kəsildi (qismən cavab gəldi)' : 'Axın kəsildi' };
+      return { outcome: 'retry', reason: 'stream_cut', msg: s.sawContent ? 'Stream interrupted (partial response received)' : 'Stream interrupted' };
     }
     if (!s.gotDone) {
-      // LEGACY_SPEC §5: [DONE] və ya done=true olmadan bitən axın = şəbəkə kəsintisi → retry
-      return { outcome: 'retry', reason: 'no_done', msg: 'Axın [DONE] olmadan bitdi' };
+      // LEGACY_SPEC §5: a stream ending without [DONE] or done=true = network cutoff → retry
+      return { outcome: 'retry', reason: 'no_done', msg: 'Stream ended without [DONE]' };
     }
-    if (!s.sawContent) return { outcome: 'await_user', reason: 'empty_stream', msg: 'Boş cavab (yalnız [DONE])' };
+    if (!s.sawContent) return { outcome: 'await_user', reason: 'empty_stream', msg: 'Empty response (only [DONE])' };
     return { outcome: 'success', reason: 'ok', msg: '' };
   };
 
@@ -79,7 +79,7 @@
     return obj;
   }
 
-  /* LEGACY_SPEC §5: message obyekti /data/message → /data/data/message → /message → /data/data/data */
+  /* LEGACY_SPEC §5: message object /data/message → /data/data/message → /message → /data/data/data */
   C.extractMessage = function (j) {
     var m = dig(j, ['data', 'message']);
     if (m && typeof m === 'object') return m;
@@ -109,7 +109,7 @@
     return [c || ec, d].filter(Boolean).join(' — ');
   };
 
-  /* SÖZ SAYĞACI — boşluqlarla ayrılmış söz sayı (Unicode-safe trim) */
+  /* WORD COUNTER — number of whitespace-separated words (Unicode-safe trim) */
   C.countWords = function (text) {
     var t = String(text || '').trim();
     if (!t) return 0;

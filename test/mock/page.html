@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="az">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Z.ai Mock</title>
@@ -26,7 +26,7 @@
   .hint { color: #747474; font-size: 11px; padding: 0 16px 70px; }
   .chip { cursor: pointer; }
 
-  /* preview modalı (z.ai kimi: generasiya bitəndə ÖZ-ÖZÜNƏ açılır) */
+  /* preview modal (like z.ai: opens on its own when generation finishes) */
   #previewModal {
     position: fixed; inset: 0; z-index: 5000; display: none;
     align-items: center; justify-content: center; background: rgba(0,0,0,.65);
@@ -43,7 +43,7 @@
     border-radius: 50%; width: 30px; height: 30px; border: none; cursor: pointer;
   }
 
-  /* v1.2.0 test modalları — peak hours popapı və giriş (parol) dialoqu */
+  /* v1.2.0 test modals — peak hours popup and sign-in (password) dialog */
   .modal-overlay {
     position: fixed; inset: 0; z-index: 5000; display: none;
     align-items: center; justify-content: center; background: rgba(0,0,0,.65);
@@ -66,28 +66,28 @@
 </style>
 </head>
 <body>
-  <div id="nav">Mock Z.ai — <span id="turnCount">0</span> gediş</div>
-  <div id="messages"><div class="hint">Mock chat.z.ai səhifəsi (real protokol: /api/v2/chat/completions + X-Signature)</div></div>
+  <div id="nav">Mock Z.ai — <span id="turnCount">0</span> turns</div>
+  <div id="messages"><div class="hint">A mock chat.z.ai page (real protocol: /api/v2/chat/completions + X-Signature)</div></div>
   <div id="composerWrap">
     <div id="chips"></div>
     <div class="row">
-      <button id="attach" title="Əlavə et">＋</button>
-      <textarea id="composer" rows="1" placeholder="Mesaj yazın…"></textarea>
-      <button id="send" title="Göndər">➤</button>
+      <button id="attach" title="Attach">＋</button>
+      <textarea id="composer" rows="1" placeholder="Write a message…"></textarea>
+      <button id="send" title="Send">➤</button>
       <input id="fileInput" type="file" multiple>
     </div>
   </div>
 
-  <div id="previewModal" class="modal-overlay preview-modal" role="dialog" aria-modal="true" aria-label="Fayl preview">
+  <div id="previewModal" class="modal-overlay preview-modal" role="dialog" aria-modal="true" aria-label="File preview">
     <div class="modal-box">
       <button id="previewClose" type="button" aria-label="Close">✕</button>
-      <div class="modal-title">📄 Yaradılan faylın preview-i</div>
+      <div class="modal-title">📄 Generated file preview</div>
       <img alt="preview" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzODAiIGhlaWdodD0iMjQwIj48cmVjdCB3aWR0aD0iMzgwIiBoZWlnaHQ9IjI0MCIgZmlsbD0iIzQwOTlmZiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjIwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPm1vY2sgZmlsZSBwcmV2aWV3PC90ZXh0Pjwvc3ZnPg==">
     </div>
   </div>
 
-  <!-- z.ai-in "peak hours" popapı (özlüyündən açılır) -->
-  <div id="peakModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Pik saatlar xəbərdarlığı">
+  <!-- z.ai's "peak hours" popup (opens on its own) -->
+  <div id="peakModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Peak hours warning">
     <div class="modal-box">
       <div class="modal-title">⚠️ Currently in peak hours</div>
       <p>Traffic is high right now — answers may be slower than usual.</p>
@@ -96,13 +96,13 @@
     </div>
   </div>
 
-  <!-- parol dialoqu — heç vaxt bağlanmamalıdır -->
-  <div id="authModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Daxil ol">
+  <!-- password dialog — must never be closed -->
+  <div id="authModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Sign in">
     <div class="modal-box">
       <div class="modal-title">Sign in required</div>
       <p>Currently in peak hours — please sign in to continue.</p>
-      <input type="password" placeholder="Şifrə" autocomplete="off">
-      <button type="submit">Daxil ol</button>
+      <input type="password" placeholder="Password" autocomplete="off">
+      <button type="submit">Sign in</button>
     </div>
   </div>
 

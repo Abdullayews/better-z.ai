@@ -1,4 +1,4 @@
-/* Unit testlər — core/preview.js saf qərar funksiyası (P.decide). */
+/* Unit tests — core/preview.js pure decision function (P.decide). */
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
@@ -19,13 +19,13 @@ function loadPreview() {
 
 const P = loadPreview();
 
-test('parametr söndürüldükdə hər şey açıq qalır', () => {
+test('everything stays open when the setting is off', () => {
   assert.equal(P.decide({ blockAutoPreview: false, now: 1000 }), 'allow');
   assert.equal(P.decide({ blockAutoPreview: false, now: 1000, lastClickTs: null, lastCompletionOkTs: 900 }), 'allow');
 });
 
-test('media/chip klikli açılış həmişə saxlanılır (prioritet 1)', () => {
-  // klik fresh, completion pəncərəsi də aktiv — amma klik preview triggeridir
+test('media/chip open-on-click is always kept (priority 1)', () => {
+  // the click is fresh and the completion window is active too — but the click is a preview trigger
   assert.equal(P.decide({
     blockAutoPreview: true, now: 5000,
     lastClickTs: 4800, lastClickIsPreviewTrigger: true,
@@ -33,13 +33,13 @@ test('media/chip klikli açılış həmişə saxlanılır (prioritet 1)', () => 
   }), 'allow');
 });
 
-test('uğurlu completion pəncərəsində avtomatik açılış bağlanır (prioritet 2)', () => {
+test('auto-open is blocked inside the completion window (priority 2)', () => {
   assert.equal(P.decide({
     blockAutoPreview: true, now: 5000,
     lastClickTs: 4500, lastClickIsPreviewTrigger: false,
     lastCompletionOkTs: 4800
   }), 'close');
-  // pəncərə bitibsə → bağlanmır
+  // once the window is over → not blocked
   assert.equal(P.decide({
     blockAutoPreview: true, now: 20000,
     lastClickTs: 19500, lastClickIsPreviewTrigger: false,
@@ -47,7 +47,7 @@ test('uğurlu completion pəncərəsində avtomatik açılış bağlanır (prior
   }), 'allow');
 });
 
-test('fayl əlavəsi pəncərəsində avtomatik açılış bağlanır (prioritet 3)', () => {
+test('auto-open is blocked inside the file-add window (priority 3)', () => {
   assert.equal(P.decide({
     blockAutoPreview: true, now: 5000,
     lastClickTs: 4200, lastClickIsPreviewTrigger: false,
@@ -55,18 +55,18 @@ test('fayl əlavəsi pəncərəsində avtomatik açılış bağlanır (prioritet
   }), 'close');
 });
 
-test('klik yoxdursa bağlanır (prioritet 4)', () => {
+test('blocked when there is no click (priority 4)', () => {
   assert.equal(P.decide({
     blockAutoPreview: true, now: 5000,
     lastClickTs: null, lastClickIsPreviewTrigger: false
   }), 'close');
   assert.equal(P.decide({
     blockAutoPreview: true, now: 10000,
-    lastClickTs: 1000, lastClickIsPreviewTrigger: false  // köhnə klik
+    lastClickTs: 1000, lastClickIsPreviewTrigger: false  // stale click
   }), 'close');
 });
 
-test('təzə klik + boş pəncərələr → saxlanılır (prioritet 5)', () => {
+test('fresh click + empty windows → kept (priority 5)', () => {
   assert.equal(P.decide({
     blockAutoPreview: true, now: 5000,
     lastClickTs: 4200, lastClickIsPreviewTrigger: false,
@@ -74,7 +74,7 @@ test('təzə klik + boş pəncərələr → saxlanılır (prioritet 5)', () => {
   }), 'allow');
 });
 
-test('sərhəd: gələcək zaman damğaları (mənfi yaş) bağlamır', () => {
+test('edge: future timestamps (negative age) do not block', () => {
   assert.equal(P.decide({
     blockAutoPreview: true, now: 1000,
     lastClickTs: 5000, lastClickIsPreviewTrigger: false,
@@ -82,7 +82,7 @@ test('sərhəd: gələcək zaman damğaları (mənfi yaş) bağlamır', () => {
   }), 'allow');
 });
 
-test('WINDOWS konfiqurasiyası gözləntiyə uyğundur', () => {
+test('WINDOWS configuration matches expectations', () => {
   assert.equal(P.WINDOWS.completion, 4000);
   assert.equal(P.WINDOWS.fileChange, 2500);
   assert.equal(P.WINDOWS.click, 2200);

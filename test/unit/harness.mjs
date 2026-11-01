@@ -1,4 +1,4 @@
-/* Core fayllarını Node vm kontekstində yükləyir (brauzerə asılı olmadan). */
+/* Loads the core files into a Node vm context (no browser dependency). */
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';

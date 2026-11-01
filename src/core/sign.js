@@ -1,28 +1,28 @@
 /*
- * better z.ai — X-Signature imza alqoritmi (LEGACY_SPEC §5, dəqiq port).
+ * better z.ai — X-Signature signature algorithm (LEGACY_SPEC §5, exact port).
  *
- * Alqoritm (z.ai web tətbiqindən geri mühəndisliklə alınmışdır):
+ * Algorithm (reverse-engineered from the z.ai web app):
  *   1. ts = unix ms; requestId = uuid
  *   2. sorted_payload = "requestId,{requestId},timestamp,{ts},user_id,{user_id}"
- *   3. prompt_b64 = standart base64(prompt.trim() UTF-8)
+ *   3. prompt_b64 = standard base64(prompt.trim() UTF-8)
  *   4. data = "{sorted_payload}|{prompt_b64}|{ts}"
- *   5. g = ts / 300000 (tam bölmə — 5 dəqiqəlik pəncərə)
+ *   5. g = ts / 300000 (integer division — 5-minute window)
  *   6. subkey = HMAC_SHA256_hex(key=SIGNATURE_KEY, msg=str(g))
- *   7. signature = HMAC_SHA256_hex(key=subkey, msg=data)   ← subkey hex-SİTRİNGİ açar kimi
+ *   7. signature = HMAC_SHA256_hex(key=subkey, msg=data)   ← subkey HEX STRING as the key
  *
- * İmza köhnələndikdə (>5 dəq) retry üçün yenidən imzalamaq olar —
- * funksiyalar safdır və Node vm testlərində də işləyir (crypto.subtle Node≥20-də qlobal).
+ * When the signature goes stale (>5 min) it can be re-signed for a retry —
+ * the functions are pure and also work in Node vm tests (crypto.subtle is global in Node≥20).
  */
 (function (root) {
   'use strict';
   var C = root.__zaiExtCore = root.__zaiExtCore || {};
 
   C.SIGNATURE_KEY = 'key-@@@@)))()((9))-xxxx&&&%%%%%';
-  C.SIGNATURE_WINDOW_MS = 300000; // 5 dəqiqə
+  C.SIGNATURE_WINDOW_MS = 300000; // 5 minutes
 
   var TE = new TextEncoder();
 
-  /* LEGACY_SPEC form_encode: [A-Za-z0-9*-._] saxlanılır, boşluq→'+', qalanı %XX (böyük hərflə) */
+  /* LEGACY_SPEC form_encode: [A-Za-z0-9*-._] kept, space→'+', the rest as %XX (uppercase) */
   C.formEncode = function (v) {
     v = String(v);
     var out = '';
@@ -45,7 +45,7 @@
     for (var i = 0; i < bytes.length; i += 0x8000) {
       bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     }
-    return btoa(bin); // standart base64, padding ilə
+    return btoa(bin); // standard base64, with padding
   };
 
   C.hmacHex = async function (keyStr, msg) {
@@ -70,10 +70,10 @@
   };
 
   /*
-   * Köhnəlmiş sorğu üçün yeni imza + yeni URL.
-   * queryEntries: tutulmuş sorğunun SIRAQLI [[k,v]] siyahısı (dəyişdirilməz qaydada saxlanılır).
-   * Yalnız zamanla bağlı sahələr yenilənir: timestamp, signature_timestamp,
-   * local_time, utc_time; qalan fingerprint sahələri olduqca kimi saxlanılır.
+   * Fresh signature + fresh URL for a stale request.
+   * queryEntries: the ORDERED [[k,v]] list of the intercepted request (kept unchanged).
+   * Only time-dependent fields are refreshed: timestamp, signature_timestamp,
+   * local_time, utc_time; the remaining fingerprint fields are kept as-is.
    */
   C.resignUrl = async function (queryEntries, origin, pathname, prompt, requestId, userId, nowMs) {
     var ts = nowMs || Date.now();

@@ -1,45 +1,45 @@
 /*
- * better z.ai — Preview Guard modulu.
+ * better z.ai — Preview Guard module.
  *
- * Vəzifəsi: chat.z.ai tərəfindən ÖZ-ÖZÜNƏ açılan fayl/şəkil preview
- * pəncərələrini avtomatik bağlamaq. İstifadəçi kliklə açılan preview-lərə
- * toxunmur → "preview yalnız basılanda açılır".
+ * Purpose: automatically close the file/image preview windows that chat.z.ai
+ * opens BY ITSELF. Previews the user opens by clicking are left untouched →
+ * "preview opens only on click".
  *
- * Aşkarlama qaydaları (prioritet sırası):
- *   1. istifadəçi media/fayl elementinə (şəkil, chip, thumbnail) klikləyib
- *      → bu, bilərəkdən açılışdır → saxla
- *   2. uğurlu completion-dən sonrakı 4 saniyədə açılıb → generasiya bitdi,
- *      sayt özü açdı → bağla
- *   3. fayl əlavəsindən (file input change) sonrakı 2.5 saniyədə açılıb → bağla
- *   4. son 2.2 saniyədə heç bir etibarlı klik yoxdur → bağla
- *   5. qalan hallar (son klik olub, pəncərələr boşdur) → saxla
+ * Detection rules (priority order):
+ *   1. the user clicked a media/file element (image, chip, thumbnail)
+ *      → this is a deliberate open → keep
+ *   2. opened within 4 seconds after a successful completion → generation
+ *      finished, the site opened it itself → close
+ *   3. opened within 2.5 seconds after a file attachment (file input change) → close
+ *   4. no trusted click within the last 2.2 seconds → close
+ *   5. remaining cases (recent click, windows empty) → keep
  *
- * ISOLATED world content script kimi işləyir; Node vm-də yalnız saf qərar
- * hissəsi (P.decide) yüklənir (unit testlər üçün).
+ * Runs as an ISOLATED world content script; in Node vm only the pure
+ * decision part (P.decide) is loaded (for unit tests).
  */
 (function (root) {
   'use strict';
   var P = root.__zaiExtPreview = root.__zaiExtPreview || {};
 
-  /* Pəncərələmələr (ms) və limitlər */
+  /* Windows (ms) and limits */
   P.WINDOWS = {
-    click: 2200,        // "son klik" pəncərəsi
-    completion: 4000,   // uğurlu completion-dan sonra avto-açılış pəncərəsi
-    fileChange: 2500,   // fayl əlavəsindən sonra avto-açılış pəncərəsi
-    scan: 700,          // təhlükəsizlik ehtiyat skan intervalı
-    step: 200,          // bağlama kaskadının addım gözləməsi
-    maxCloses: 5,       // eyni element üçün maksimum bağlama cəhdi
-    closeWindow: 30000  // dövrə qoruyucusu (circuit breaker) pəncərəsi
+    click: 2200,        // "last click" window
+    completion: 4000,   // auto-open window after a successful completion
+    fileChange: 2500,   // auto-open window after a file attachment
+    scan: 700,          // safety fallback scan interval
+    step: 200,          // closing cascade step delay
+    maxCloses: 5,       // maximum close attempts for the same element
+    closeWindow: 30000  // circuit breaker window
   };
 
   /*
-   * SAF QƏRAR FUNKSIYASI (unit-test olunur).
+   * PURE DECISION FUNCTION (unit-tested).
    * st: {
    *   blockAutoPreview, now,
    *   lastClickTs, lastClickIsPreviewTrigger,
    *   lastFileChangeTs, lastCompletionOkTs
    * }
-   * → 'allow' (saxla) | 'close' (avtomatik açılış sayılır → bağla)
+   * → 'allow' (keep) | 'close' (counts as an automatic open → close)
    */
   P.decide = function (st) {
     st = st || {};
@@ -48,29 +48,29 @@
     var W = P.WINDOWS;
     var clickAge = (typeof st.lastClickTs === 'number' && st.lastClickTs >= 0)
       ? now - st.lastClickTs : Infinity;
-    var clickKnown = clickAge >= 0;                 // gələcək zaman → naməlum, "yoxdur" deyil
+    var clickKnown = clickAge >= 0;                 // future timestamp → unknown, not "absent"
     var hadClick = clickKnown && clickAge <= W.click;
-    // 1) istifadəçi media/fayl elementinə klikləyib → bilərəkdən açılış
+    // 1) the user clicked a media/file element → deliberate open
     if (hadClick && st.lastClickIsPreviewTrigger) return 'allow';
-    // 2) uğurlu completion pəncərəsi
+    // 2) successful completion window
     if (typeof st.lastCompletionOkTs === 'number') {
       var cAge = now - st.lastCompletionOkTs;
       if (cAge >= 0 && cAge <= W.completion) return 'close';
     }
-    // 3) fayl əlavəsi pəncərəsi
+    // 3) file attachment window
     if (typeof st.lastFileChangeTs === 'number') {
       var fAge = now - st.lastFileChangeTs;
       if (fAge >= 0 && fAge <= W.fileChange) return 'close';
     }
-    // 4) klik vaxtı naməlumdur (saat uyğunsuzluğu) → toxunma
+    // 4) click time unknown (clock mismatch) → leave it alone
     if (!clickKnown) return 'allow';
-    // 5) heç bir klik yoxdur / klik çox köhnədir → avtomatik
+    // 5) no click / click too stale → automatic
     if (!hadClick) return 'close';
-    // 6) son klik var, pəncərələr boş → istifadəçi edib
+    // 6) recent click present, windows empty → the user did it
     return 'allow';
   };
 
-  /* ============ DOM hissəsi (yalnız brauzerdə) ============ */
+  /* ============ DOM part (browser only) ============ */
   if (typeof document === 'undefined' || !document) return;
 
   var hooks = null;             // { getSettings, log }
@@ -79,8 +79,8 @@
   var lastClickTarget = null;
   var lastFileChangeTs = null;
   var lastCompletionOkTs = null;
-  var seen = null;              // Map: BU skanda görünən elementlər (bağlanan düşür →
-                                // yenidən açılan modal yenidən qiymətləndirilir)
+  var seen = null;              // Map: elements seen in THIS scan (closed ones drop out →
+                                // a reopened modal gets re-evaluated)
   var closeStats = null;        // WeakMap: element -> { n, first }
   var lastLogTs = 0;
   var scanTimer = null;
@@ -93,7 +93,7 @@
     '[class*="gallery"]', '[class*="artifact"]'
   ].join(',');
 
-  /* istifadəçinin kliklədikdə preview AÇAN elementlər (şəkil/chip/thumbnail…) */
+  /* elements that OPEN a preview on user click (image/chip/thumbnail…) */
   var TRIGGER_SEL = [
     'img', 'video', 'figure',
     'a[href]',
@@ -105,7 +105,7 @@
 
   var FILE_HREF_RE = /\.(png|jpe?g|gif|webp|svg|pdf|mp4|mp3|docx?|xlsx?|pptx?|zip|txt|md|csv)([?#]|$)/i;
   var STRONG_NAME_RE = /preview|lightbox|viewer|gallery|artifact/i;
-  var CLOSE_ARIA_RE = /^(close|bağla|shut|×|✕)$/i;
+  var CLOSE_ARIA_RE = /^(close|shut|×|✕)$/i;
 
   function isPreviewTriggerTarget(t) {
     try {
@@ -115,7 +115,7 @@
       if (el.tagName === 'IMG' || el.tagName === 'VIDEO' || el.tagName === 'FIGURE') return true;
       var href = el.getAttribute ? (el.getAttribute('href') || '') : '';
       if (href && FILE_HREF_RE.test(href)) return true;
-      return true; // selektora uyğun element klikləndi
+      return true; // an element matching the selector was clicked
     } catch (e) { return false; }
   }
 
@@ -158,14 +158,14 @@
   function looksLikePreview(el) {
     try {
       if (!el || !el.isConnected) return false;
-      if (el.closest && el.closest('.zai-ext-pill')) return false;   // bizim HUD
-      if (!isOverlayish(el)) return false;                            // yalnız overlay-lər
-      if (STRONG_NAME_RE.test(nameHint(el))) return true;             // adı "preview/viewer/…"
+      if (el.closest && el.closest('.zai-ext-pill')) return false;   // our HUD
+      if (!isOverlayish(el)) return false;                            // overlays only
+      if (STRONG_NAME_RE.test(nameHint(el))) return true;             // name says "preview/viewer/…"
       return !!el.querySelector('img, video, iframe, embed, object, canvas');
     } catch (e) { return false; }
   }
 
-  /* ---------- bağlama kaskadı ---------- */
+  /* ---------- closing cascade ---------- */
 
   function pressEscape(el) {
     try {
@@ -185,7 +185,7 @@
         var aria = (b.getAttribute('aria-label') || '').trim();
         var cls = (typeof b.className === 'string' ? b.className : '');
         var tx = (b.innerText || b.textContent || '').trim();
-        if (CLOSE_ARIA_RE.test(aria) || /close|bağla/i.test(cls) ||
+        if (CLOSE_ARIA_RE.test(aria) || /close/i.test(cls) ||
             (tx.length <= 2 && /^(×|✕|x|X)$/.test(tx))) {
           b.click();
           return true;
@@ -213,26 +213,26 @@
       var now = Date.now();
       if (now - lastLogTs < 2000) return;
       lastLogTs = now;
-      if (hooks && hooks.log) hooks.log('preview bloklandı (' + how + ')');
+      if (hooks && hooks.log) hooks.log('preview blocked (' + how + ')');
     } catch (e) { /* ignore */ }
   }
 
   function closeCascade(el, step) {
     try {
       if (!el || !el.isConnected) return;
-      if (!visibleEl(el)) return; // artıq bağlıdır
+      if (!visibleEl(el)) return; // already closed
       if (step === 0) {
-        // dövrə qoruyucusu: sayt dəfələrlə yenidən açırsa müdaxiləni dayandırırıq
+        // circuit breaker: if the site reopens it repeatedly, we stop intervening
         var now = Date.now();
         var st = closeStats.get(el);
         if (!st || now - st.first > P.WINDOWS.closeWindow) st = { n: 0, first: now };
         st.n += 1;
         closeStats.set(el, st);
         if (st.n > P.WINDOWS.maxCloses) {
-          logClose('təkrar açılır — müdaxilə dayandırıldı');
+          logClose('reopening — intervention stopped');
           return;
         }
-        // statistika üçün bloklanma sayğacı
+        // blocked counter for statistics
         if (hooks && hooks.onBlocked) { try { hooks.onBlocked(); } catch (e) { /* ignore */ } }
         pressEscape(el);
       } else if (step === 1) {
@@ -241,17 +241,17 @@
         clickBackdrop(el);
       } else {
         forceHide(el);
-        logClose('məcburi gizlədildi');
+        logClose('force-hidden');
         return;
       }
       setTimeout(function () {
         if (visibleEl(el)) closeCascade(el, step + 1);
-        else logClose(['escape', 'düymə', 'fon kliki'][step] || 'addım ' + step);
+        else logClose(['escape', 'button', 'background click'][step] || 'step ' + step);
       }, P.WINDOWS.step);
     } catch (e) { /* ignore */ }
   }
 
-  /* ---------- skan ---------- */
+  /* ---------- scan ---------- */
 
   function scan() {
     scanTimer = null;
@@ -259,17 +259,17 @@
       if (!hooks || !document.body) return;
       var s = hooks.getSettings();
       if (!s || !s.blockAutoPreview) {
-        seen = new Map(); // parametr söndürüldü → yenidən yandıqda təzədən işləsin
+        seen = new Map(); // setting disabled → start fresh when re-enabled
         return;
       }
       var now = Date.now();
       var els = document.querySelectorAll(SEL);
-      var live = new Map();   // yalnız hazırda görünənlər
+      var live = new Map();   // only the currently visible ones
       for (var i = 0; i < els.length; i++) {
         var el = els[i];
         if (!visibleEl(el)) continue;
         live.set(el, true);
-        if (seen && seen.has(el)) continue;   // bu sessiyada artıq qiymətləndirilib
+        if (seen && seen.has(el)) continue;   // already evaluated in this session
         if (!looksLikePreview(el)) continue;
         var verdict = P.decide({
           blockAutoPreview: true,
@@ -281,8 +281,8 @@
         });
         if (verdict === 'close') closeCascade(el, 0);
       }
-      // bağlanmış/gizlədilmiş elementləri siyahıdan çıxarırıq →
-      // eyni modal yenidən açılanda yenidən qərar veriləcək
+      // drop closed/hidden elements from the list →
+      // the same modal gets re-evaluated when it reopens
       seen = live;
     } catch (e) { /* ignore */ }
   }
@@ -307,9 +307,9 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* ---------- xarici API ---------- */
+  /* ---------- external API ---------- */
 
-  /* content.js RESULT mesajlarından çağırılır: uğur → pəncərə silahlanır */
+  /* called from content.js RESULT messages: success → arms the window */
   P.noteResult = function (d) {
     if (d && d.outcome === 'success') lastCompletionOkTs = Date.now();
   };

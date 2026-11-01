@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""better z.ai — Firefox E2E (Marionette vasitəsilə).
+"""better z.ai — Firefox E2E (via Marionette).
 
-Playwright Firefox-da extension yükləməyi dəstəkləmir; ona görə Marionette
-(gecko daxili protokolu) + Addon.install(temp) istifadə edirik.
+Playwright does not support loading extensions in Firefox; that is why we use
+Marionette (gecko's built-in protocol) + Addon.install(temp).
 
-Gedış: python3 test/e2e/firefox_spec.py
-Tələb: npx playwright install firefox  +  pip install marionette_driver
+Run: python3 test/e2e/firefox_spec.py
+Requires: npx playwright install firefox  +  pip install marionette_driver
 """
 import json
 import os
@@ -45,7 +45,7 @@ def wait_server():
                 return p
             except Exception:
                 continue
-    raise RuntimeError("mock server başlamadı")
+    raise RuntimeError("mock server failed to start")
 
 
 def find_firefox():
@@ -54,12 +54,12 @@ def find_firefox():
     for c in cands:
         if c.exists():
             return str(c)
-    raise RuntimeError("firefox tapılmadı: npx playwright install firefox")
+    raise RuntimeError("firefox not found: npx playwright install firefox")
 
 
 def probe_page_world(client):
-    """Marionette sandbox səhifə qloballarını OXA bilmir — ona görə
-    inline script (page world) ilə DOM-a nəticə yazırıq."""
+    """The Marionette sandbox cannot READ page globals — so we write
+    the result into the DOM via an inline script (page world)."""
     client.execute_script(
         "var s=document.createElement('script');"
         "s.textContent=\"var d=document.getElementById('pw-probe');"
@@ -95,29 +95,29 @@ def main():
             time.sleep(0.5)
     if client is None:
         proc.kill()
-        raise RuntimeError("marionette bağlanmadı")
-    print("marionette: bağlı")
+        raise RuntimeError("marionette did not connect")
+    print("marionette: connected")
 
     addon_id = Addons(client).install(str(DIST_FF), temp=True)
-    print("addon quraşdırıldı:", addon_id)
+    print("addon installed:", addon_id)
 
     failures = 0
     try:
-        # Ssenari 0: inject (page world zondası ilə — Marionette sandbox qlobal oxuya bilmir)
+        # Scenario 0: inject (probed in the page world — the Marionette sandbox cannot read globals)
         client.navigate(BASE + "/")
         time.sleep(1.5)
         pw = probe_page_world(client)
         if 'inject=true' not in pw:
-            raise AssertionError("MAIN world inject olunmadı: " + pw)
-        print("  ✔ 0 inject (MAIN world) aktiv —", pw)
+            raise AssertionError("MAIN world was not injected: " + pw)
+        print("  ✔ 0 inject (MAIN world) active —", pw)
 
-        # Ssenari FF-A: busy → avto-retry (attachment ilə)
+        # Scenario FF-A: busy -> auto-retry (with an attachment)
         http("POST", BASE + "/_ctl", {"script": ["busy", "sse_ok"], "resetPersist": True})
         http("DELETE", BASE + "/_log")
         client.navigate(BASE + "/")
         time.sleep(1.2)
 
-        # Marionette send_keys görünən element tələb edir — input-u açırıq
+        # Marionette send_keys needs a visible element — unhide the input
         client.execute_script("document.getElementById('fileInput').style.display='block'; document.getElementById('fileInput').style.opacity='0';", [])
         fi = client.find_element(By.ID, "fileInput")
         fi.send_keys(str(up))
@@ -128,10 +128,10 @@ def main():
                 break
             time.sleep(0.3)
         else:
-            raise AssertionError("chip görünmədi (upload alınmadı)")
+            raise AssertionError("the chip did not appear (upload failed)")
 
         comp = client.find_element(By.ID, "composer")
-        comp.send_keys("Salam firefox testi")
+        comp.send_keys("Hello firefox test")
         client.find_element(By.ID, "send").click()
 
         deadline = time.time() + 10
@@ -140,12 +140,12 @@ def main():
                 break
             time.sleep(0.3)
         else:
-            raise AssertionError("tətbiqdə busy xətası görünmədi")
+            raise AssertionError("the busy error did not appear in the app")
 
         pain = client.execute_script("return document.getElementById('composer').value === '' && document.querySelectorAll('#chips .chip').length === 0", [])
         if not pain:
-            raise AssertionError("z.ai davranışı təkrarlanmadı (composer/chips silinmədi)")
-        print("  ✔ FFA1 tətbiqdə xəta + attachment-lar silindi")
+            raise AssertionError("z.ai behavior not reproduced (composer/chips were not cleared)")
+        print("  ✔ FFA1 error in the app + attachments deleted")
 
         deadline = time.time() + 30
         log = None
@@ -155,20 +155,20 @@ def main():
                 break
             time.sleep(0.4)
         if len(log["requests"]) < 2:
-            raise AssertionError("retry gəlmədi (requests=%d)" % len(log["requests"]))
+            raise AssertionError("no retry (requests=%d)" % len(log["requests"]))
         r0, r1 = log["requests"][0], log["requests"][1]
         if not (r0["sigOk"] and r1["sigOk"]):
-            raise AssertionError("imza yoxlaması keçilmədi: %s" % (r1.get("why"),))
+            raise AssertionError("signature check failed: %s" % (r1.get("why"),))
         if json.dumps(r0["body"], sort_keys=True) != json.dumps(r1["body"], sort_keys=True):
-            raise AssertionError("retry body fərqlidir")
+            raise AssertionError("the retry body differs")
         last = r1["body"]["messages"][-1]["content"]
         if not any(p.get("type") == "image_url" for p in last):
-            raise AssertionError("retry body-də attachment yoxdur")
+            raise AssertionError("no attachment in the retry body")
         if r1["headers"]["x-signature"] == r0["headers"]["x-signature"]:
-            raise AssertionError("imza yenilənmədi")
+            raise AssertionError("the signature was not refreshed")
         if not (r1["query"]["timestamp"] > r0["query"]["timestamp"]):
-            raise AssertionError("timestamp artmadı")
-        print("  ✔ FFA2 retry: eyni body + attachment, imza yeniləndi")
+            raise AssertionError("timestamp did not increase")
+        print("  ✔ FFA2 retry: same body + attachment, signature refreshed")
 
         deadline = time.time() + 20
         while time.time() < deadline:
@@ -177,31 +177,31 @@ def main():
                 break
             time.sleep(0.4)
         if len(log["persists"]) < 1:
-            raise AssertionError("persist yoxdur")
+            raise AssertionError("no persist")
         chat = log["persists"][-1]["chat"]
         if chat["history"]["currentId"] != r0["body"]["id"]:
-            raise AssertionError("persist currentId uyğunsuz")
+            raise AssertionError("persist currentId mismatch")
         entries = list(chat["history"]["messages"].values())
         assistant = [m for m in entries if m.get("role") == "assistant"]
-        if not assistant or "Salam! Bu avtomatik" not in str(assistant[-1]["content"]):
-            raise AssertionError("persist-də cavab yoxdur")
-        print("  ✔ FFA3 persist yazıldı (attachment + cavab)")
+        if not assistant or "Hello! This is an automatic" not in str(assistant[-1]["content"]):
+            raise AssertionError("no response in persist")
+        print("  ✔ FFA3 persist written (attachment + response)")
 
-        # avto-reload → uğur görünür
+        # auto-reload -> success becomes visible
         deadline = time.time() + 20
         while time.time() < deadline:
-            ok_page = client.execute_script("var t=document.body.innerText||''; return t.indexOf('Salam! Bu avtomatik')>=0 && !document.querySelector('#messages .err')", [])
+            ok_page = client.execute_script("var t=document.body.innerText||''; return t.indexOf('Hello! This is an automatic')>=0 && !document.querySelector('#messages .err')", [])
             if ok_page:
                 break
             time.sleep(0.4)
         if not ok_page:
-            raise AssertionError("avto-reload sonrası uğur görünmədi")
-        print("  ✔ FFA4 səhifə avtomatik yeniləndi — uğur görünür")
+            raise AssertionError("success did not appear after the auto-reload")
+        print("  ✔ FFA4 the page reloaded automatically — success is visible")
 
-        # Ssenari FF-B: PREVIEW GUARD — uğurdan sonra öz-özünə açılan
-        # preview bağlanmalıdır (blockAutoPreview standart olaraq aktivdir)
+        # Scenario FF-B: PREVIEW GUARD — the preview that opens itself after
+        # success must be closed (blockAutoPreview is on by default)
         def inject_page_js(js):
-            """Səhifə world-də JS icra et (inline script — sandbox qlobalları oxuya bilmir)."""
+            """Run JS in the page world (inline script — the sandbox cannot read globals)."""
             client.execute_script(
                 "var s=document.createElement('script');s.textContent=" + json.dumps(js) + ";"
                 "(document.head||document.documentElement).appendChild(s);"
@@ -223,7 +223,7 @@ def main():
         http("POST", BASE + "/_ctl", {"script": ["sse_ok"], "resetPersist": False})
         inject_page_js("window.__mockAutoPreview = true;")
         comp = client.find_element(By.ID, "composer")
-        comp.send_keys("preview ff testi")
+        comp.send_keys("preview ff test")
         client.find_element(By.ID, "send").click()
         st = {}
         deadline = time.time() + 12
@@ -233,16 +233,16 @@ def main():
                 break
             time.sleep(0.3)
         if not (st.get("openedBy") == "auto" and st.get("open") is False and st.get("closedBy")):
-            raise AssertionError("avtomatik preview bloklanmadı: %s" % (st,))
-        print("  ✔ FFB uğurdan sonra avtomatik preview bağlandı (%s)" % st.get("closedBy"))
+            raise AssertionError("the automatic preview was not blocked: %s" % (st,))
+        print("  ✔ FFB the automatic preview after success was closed (%s)" % st.get("closedBy"))
 
-        # FF-C: heç bir klik/fayl əlavəsi OLMADAN, completion pəncərəsi də
-        # bitdikdən sonra öz-özünə açılan preview bağlanmalıdır.
-        # (Qeyd: "chip kliklə açılır və açıq qalır" halı Chrome E2E H1-də
-        #  ETİBARLI kliklə yoxlanılır — Marionette-in atom-kliki isTrusted=false
-        #  olduğundan burada sınana bilmir; məntiq eyni content script-dir.)
+        # FF-C: with NO click and NO file add, a preview that opens itself even
+        # after the completion window must be closed.
+        # (Note: the "chip click opens and stays open" case is verified in Chrome
+        #  E2E H1 with a TRUSTED click — Marionette's atom-click is isTrusted=false
+        #  so it cannot be tested here; the logic is the same content script.)
         inject_page_js("window.__mockAutoPreview = false;")
-        time.sleep(4.6)  # FFB completion pəncərəsi (4s) bitsin
+        time.sleep(4.6)  # let the FFB completion window (4s) expire
         inject_page_js(
             "document.getElementById('previewModal').classList.add('open');"
             "window.__mockPreview.opens += 1;"
@@ -257,12 +257,12 @@ def main():
                 break
             time.sleep(0.3)
         if not (st.get("openedBy") == "auto2" and st.get("open") is False and st.get("closedBy")):
-            raise AssertionError("kliksiz avtomatik preview bloklanmadı: %s" % (st,))
-        print("  ✔ FFC klik/pəncərəsiz öz-özünə açılan preview də bağlandı (%s)" % st.get("closedBy"))
+            raise AssertionError("the click-less automatic preview was not blocked: %s" % (st,))
+        print("  ✔ FFC a preview that opened itself with no click/window was closed too (%s)" % st.get("closedBy"))
 
-        # Ssenari FF-D: POPAP BAĞLAYICI — "peak hours" popapı
-        # öz-özünə açılanda avtomatik bağlanmalıdır (parol dialoqu yoxlanılmır —
-        # Chrome N3-də etibarlı kliklə; Marionette atom-kliki eyni məntiqi işlədir).
+        # Scenario FF-D: POPUP CLOSER — the "peak hours" popup must be closed
+        # automatically when it opens on its own (the password dialog is not tested
+        # here — it is covered in Chrome N3; Marionette's atom-click uses the same logic).
         http("POST", BASE + "/_ctl", {"script": ["sse_ok"], "resetPersist": False})
         inject_page_js("window.__mockPeakOpen && window.__mockPeakOpen();")
         deadline = time.time() + 8
@@ -276,28 +276,28 @@ def main():
                 break
             time.sleep(0.3)
         if not closed:
-            raise AssertionError("peak hours popapı bağlanmadı")
-        print("  ✔ FFD 'Currently in peak hours' popapı avtomatik bağlandı")
+            raise AssertionError("the peak hours popup was not closed")
+        print("  ✔ FFD the 'Currently in peak hours' popup was closed automatically")
 
-        # Ssenari FF-E: QARALAMA MÜHAFİZƏSİ — reload-dan sonra
-        # yazılmış mətn "Bərpa et" ilə geri qaytarılmalıdır
+        # Scenario FF-E: DRAFT GUARD — after a reload the typed
+        # text must be restored via "Restore"
         comp = client.find_element(By.ID, "composer")
-        comp.send_keys("FF qaralama testi 42")
+        comp.send_keys("FF draft test 42")
         time.sleep(1.8)  # debounce 800ms + save
         client.navigate(BASE + "/")
         time.sleep(2.4)
         banner = client.execute_script("return !!document.querySelector('.zai-ext-draft')", [])
         if not banner:
-            raise AssertionError("qaralama bannerı görünmədi")
+            raise AssertionError("the draft banner did not appear")
         client.execute_script(
             "document.querySelector('.zai-ext-draft button[data-a=restore]').click();", [])
         time.sleep(0.8)
         val = client.execute_script("return document.getElementById('composer').value", [])
-        if val != "FF qaralama testi 42":
-            raise AssertionError("qaralama bərpa olunmadı: %r" % val)
-        print("  ✔ FFE qaralama reload sonrası bərpa olundu")
+        if val != "FF draft test 42":
+            raise AssertionError("the draft was not restored: %r" % val)
+        print("  ✔ FFE the draft was restored after the reload")
 
-        print("HƏMİSİ KEÇDİ ✔ (Firefox)")
+        print("ALL PASSED ✔ (Firefox)")
     except Exception as e:
         failures += 1
         print("  ✘", e)

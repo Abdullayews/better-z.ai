@@ -1,155 +1,155 @@
 # better z.ai
 
-**z.ai üçün Chrome və Firefox extension-ı** — *"system is busy"* və digər göndərmə
-xətalarında mesajınızı **attachment-larla birlikdə** avtomatik yenidən göndərir.
+**A Chrome and Firefox extension for z.ai** — automatically resends your message
+**together with its attachments** on *"system is busy"* and other submission errors.
 
-> Əsas problem: chat.z.ai-də mesaj uğursuz olanda composer təmizlənir və **attachment-lar
-> silinir** — istifadəçi hər şeyi yenidən yükləməli olur. Bu extension o sorğunun
-> **tam nüsxəsini yaxalayır** (attachment-lar body-nin içindədir) və uğursuzluğu avtomatik
-> geri çəkilmə (backoff) ilə təkrarlayır — attachment-lar heç bir vaxt itmir.
+> The core problem: when a message fails on chat.z.ai, the composer is cleared and the
+> **attachments are deleted** — the user has to re-upload everything. This extension intercepts
+> a **complete copy of that request** (the attachments live inside the body) and retries the
+> failure with automatic backoff — the attachments are never lost.
 
-Yalnız **z.ai domenində və bütün alt domenlərində** (chat.z.ai daxil) işləyir.
+Works only on **the z.ai domain and all its subdomains** (including chat.z.ai).
 
 ---
 
-## Funksiyalar
+## Features
 
-| Funksiya | Nə edir |
+| Feature | What it does |
 |---|---|
-| 🔁 Avtomatik yenidən göndərmə | "system is busy" (global_limit), 429, WAF bloku, şəbəkə kəsintisi → eksponensial backoff ilə təkrar (imza avtomatik yenilənir) |
-| 🖼️ Preview bloku | Fayl/şəkil preview-ləri öz-özünə açılmır — yalnız kliklə açılır (standart: aktiv) |
-| 📝 Qaralama mühafizəsi | Yazdığınız mətn avtomatik yadda saxlanılır; reload-dan sonra "Bərpa et" təklifi |
-| 🧷 Mesaj xilası | Uğursuz mesajın tam mətni bir kliklə panoya |
-| ⚡ Snippet kitabxanası | Tez-tez yazdığınız şablonlar — kompozitor yanında ⚡ düyməsi, ayarlarda CRUD |
-| ⤓ Söhbətin ixracı | Cari söhbət Markdown (.md) kimi |
-| ⤓⤓ Tam backup | BÜTÜN söhbətlər bir klikdə: birləşdirilmiş .md + strukturlu .json |
-| 🔔 "Cavab hazırdır" | Tab arxa planda olanda bildiriş (istəyə bağlı səs) |
-| 🚪 Popap bağlayıcı | "Currently in peak hours" kimi popaplar avtomatik bağlanılır (parol dialoqlarına toxunulmur) |
-| ⏸ Qlobal pauza | Bütün avtomatik retry-ləri dayandır / davam etdir |
-| 🎯 Ardıcıl retry | Eyni anda yalnız bir mesaj yenidən göndərilir, sıra pozulmur |
-| 🛡️ Dublikat qorunması | Retry-dan əvvəl server tarixçəsi yoxlanılır — mesaj onsuz da çatıbsa ikinci dəfə getmir |
-| ⌨️ Qısayollar | **Alt+R** indi cəhd et · **Alt+P** pauza · **Alt+E** ixrac |
-| 🔤 Söz sayğacı | Kompozitor yanında canlı "N söz · M simvol" |
-| ⏱️ Adaptiv backoff | Ardıcıl "busy"-də gözləmələr tədricən uzanır (maks ×3), uğurda sıfırlanır |
+| 🔁 Auto-resend | "system is busy" (global_limit), 429, WAF block, network interruption → retried with exponential backoff (the signature is renewed automatically) |
+| 🖼️ Preview guard | File/image previews do not open on their own — they open only on click (default: on) |
+| 📝 Draft protection | The text you type is saved automatically; a "Restore" prompt appears after a reload |
+| 🧷 Message rescue | The full text of a failed message is copied to the clipboard in one click |
+| ⚡ Snippet library | Templates you use often — a ⚡ button next to the composer, CRUD in settings |
+| ⤓ Chat export | The current chat as Markdown (.md) |
+| ⤓⤓ Full backup | ALL chats in one click: merged .md + structured .json |
+| 🔔 "Response is ready" | A notification when the tab is in the background (optional sound) |
+| 🚪 Popup closer | Popups like "Currently in peak hours" are closed automatically (password dialogs are untouched) |
+| ⏸ Global pause | Stop / resume all automatic retries |
+| 🎯 Serial retries | Only one message is resent at a time; the queue is never broken |
+| 🛡️ Duplicate guard | Server history is checked before a retry — if the message has already arrived, it is not sent twice |
+| ⌨️ Shortcuts | **Alt+R** retry now · **Alt+P** pause · **Alt+E** export |
+| 🔤 Word counter | A live "N words · M chars" next to the composer |
+| ⏱️ Adaptive backoff | With repeated "busy" responses the waits gradually lengthen (max ×3) and reset on success |
 
-## Necə işləyir
+## How it works
 
 ```
-[z.ai səhifəsi]                              [extension]
-      │  POST /api/v2/chat/completions  ──►  yaxalama (fetch wrapper, MAIN world)
-      │  (body: mesaj + attachment-lar)       │
-      │                                       ├─ SSE axını təhlil olunur:
-      ◄─ xəta ────────────────────────────────┤   • global_limit/"busy"   → RETRY
-                                              │   • 429 + Retry-After     → RETRY (gecikmə hörmət edilir)
-                                              │   • WAF bloku (HTML)      → RETRY
-                                              │   • axın kəsintisi ([DONE] yoxdur) → RETRY
-                                              │   • 400/401/captcha/imza  → FATAL (avto-retry YOX)
-                                              │
-                                              ├─ RETRY: eyni body + eyni başlıqlar;
-                                              │   imza 4 dəq köhnəlibsə → X-Signature
-                                              │   YENİDƏN hesablanır (HMAC-SHA256)
-                                              │
-                                              └─ uğurda: POST /api/v1/chats/{id} (persist)
-                                                  + səhifə avtomatik yenilənir → mesajınız görünür
+[z.ai page]                                  [extension]
+      │  POST /api/v2/chat/completions  ──►  interception (fetch wrapper, MAIN world)
+      │  (body: message + attachments)       │
+      │                                      ├─ SSE stream is parsed:
+      ◄─ error ──────────────────────────────┤   • global_limit/"busy"   → RETRY
+                                             │   • 429 + Retry-After     → RETRY (delay is honored)
+                                             │   • WAF block (HTML)      → RETRY
+                                             │   • stream break (no [DONE]) → RETRY
+                                             │   • 400/401/captcha/signature → FATAL (no auto-retry)
+                                             │
+                                             ├─ RETRY: same body + same headers;
+                                             │   if the signature is older than 4 min →
+                                             │   X-Signature is recomputed (HMAC-SHA256)
+                                             │
+                                             └─ on success: POST /api/v1/chats/{id} (persist)
+                                                            + the page reloads automatically → your message appears
 ```
 
-Texniki detallar (real web tətbiqindən geri mühəndisliklə alınmış spec əsasındadır):
+Technical details (based on a spec reverse-engineered from the real web app):
 
-| Hissə | İzah |
+| Part | Explanation |
 |---|---|
-| Completion sorğusu | `POST /api/v2/chat/completions?...&signature_timestamp={ts}` + `X-Signature` |
-| Attachment-lar | body-də `messages[-1].content` massivi: `image_url` / `file_url` / `video_url` |
-| "System is busy" | SSE daxilində `data.error` (`global_limit` kodu) |
-| İmza pəncərəsi | 5 dəqiqə (`ts/300000`); extension 4 dəqiqədən sonra yenidən imzalayır |
-| Persist | uğurlu retry-dan sonra `POST /api/v1/chats/{id}` (msg-0..N + real id-lər) |
+| Completion request | `POST /api/v2/chat/completions?...&signature_timestamp={ts}` + `X-Signature` |
+| Attachments | the `messages[-1].content` array in the body: `image_url` / `file_url` / `video_url` |
+| "System is busy" | `data.error` inside the SSE stream (`global_limit` code) |
+| Signature window | 5 minutes (`ts/300000`); the extension re-signs after 4 minutes |
+| Persist | after a successful retry: `POST /api/v1/chats/{id}` (msg-0..N + real ids) |
 
-## Quraşdırma
+## Installation
 
-### Chrome (və əsaslı brauzerlər: Edge/Brave)
-1. `chrome://extensions` açın, sağ yuxarıda **Developer mode** aktivləşdirin.
-2. **Load unpacked** → `dist/chrome` qovluğunu (və ya zip-i açıb) seçin.
+### Chrome (and Chromium-based browsers: Edge/Brave)
+1. Open `chrome://extensions`, enable **Developer mode** in the top right.
+2. **Load unpacked** → select the `dist/chrome` folder (or extract the zip first).
 
 ### Firefox
-1. `about:debugging#/runtime/this-firefox` açın.
-2. **Load Temporary Add-on** → `dist/firefox` içindən istənilən fayl (məs. `manifest.json`).
-   *(daimi quraşdırma üçün [AMO](https://addons.mozilla.org)-dan imzalı .xpi və ya Developer Edition)*
+1. Open `about:debugging#/runtime/this-firefox`.
+2. **Load Temporary Add-on** → any file inside `dist/firefox` (e.g. `manifest.json`).
+   *(for a permanent install: a signed .xpi from [AMO](https://addons.mozilla.org) or the Developer Edition)*
 
-### Yoxlama (30 saniyə)
-1. [chat.z.ai](https://chat.z.ai) açın, daxil olun.
-2. Konsolda (F12): `window.__zaiExtInject` → `true`
-3. Bir attachment əlavə edib mesaj göndərin → ikonkaya klik → vəziyyət kartında
-   retry gedişatı görünməlidir.
+### Verification (30 seconds)
+1. Open [chat.z.ai](https://chat.z.ai) and log in.
+2. In the console (F12): `window.__zaiExtInject` → `true`
+3. Add an attachment and send a message → click the icon → the status card should show
+   the retry progress.
 
-## Ayarlar
+## Settings
 
-İkonka → **Bütün ayarlar**: maksimum cəhdlər (6), ilkin gecikmə (5s), backoff amili,
-imza yeniləmə, persist, avto-yenilə, preview bloku, qaralama, snippetlər (CRUD),
-popap açar sözləri, söz sayğacı, backup limiti, qısayollar, bildirişlər, səs,
-DOM ehtiyat rejimi + ayarların JSON ixrac/idxalı.
+Icon → **All settings**: maximum attempts (6), initial delay (5s), backoff factor,
+signature renewal, persist, auto-reload, preview guard, drafts, snippets (CRUD),
+popup keywords, word counter, backup limit, shortcuts, notifications, sound,
+DOM fallback + JSON export/import of the settings.
 
-> 📎 Mesajın attachment-larla birlikdə qorunub bərpa edilməsi **həmişə aktivdir** —
-> bu əsas funksiya söndürülə bilməz.
+> 📎 Protecting and restoring the message together with its attachments is **always on** —
+> this core feature cannot be disabled.
 
-## Məxfilik
+## Privacy
 
-- Heç bir məlumat kənar serverə getmir: tutulan sorğular yalnız brauzerin
-  `chrome.storage.local`-ında saxlanılır.
-- Extension yalnız z.ai domenində və alt domenlərində işləyir (`*://*.z.ai/*`).
+- No data goes to an external server: the captured requests are stored only in the
+  browser's `chrome.storage.local`.
+- The extension runs only on the z.ai domain and its subdomains (`*://*.z.ai/*`).
 
-## Testlər
+## Tests
 
-| Suit | Nəticə | Əhatə |
+| Suite | Result | Coverage |
 |---|---|---|
-| Unit (Node vm) | **65/65 ✔** | təsnifat, backoff + adaptiv amil, imza cross-implementation, preview prioritetləri, popap qərarları, markdown ixracı, draft köməkçiləri, söz sayğacı |
-| Chrome E2E (Playwright + xvfb) | **24 ssenari / 56 yoxlama ✔** | busy→retry (attachment, imza, persist, avto-reload), 429, 400 fatal, axın kəsintisi, dedup, ləğv, preview (3), ayarlar (4), qaralama (3), snippet (2), ixrac, popap (3), ardıcıl retry, dublikat (2), pauza (2), statistika, kopyala (2), bildiriş, söz sayğacı (3), qısayollar (6), tam backup (4) |
-| Firefox E2E (Marionette) | **10 yoxlama ✔** | inject (page world), busy→retry, imza, persist, avto-reload, preview (2), popap bağlayıcı, qaralama bərpası |
-| addons-linter | **0 error / 0 warning / 0 notice** | AMO qaydalarına uyğun |
+| Unit (Node vm) | **65/65 ✔** | classification, backoff + adaptive factor, cross-implementation signature, preview priorities, popup decisions, markdown export, draft helpers, word counter |
+| Chrome E2E (Playwright + xvfb) | **24 scenarios / 56 checks ✔** | busy→retry (attachment, signature, persist, auto-reload), 429, 400 fatal, stream break, dedup, cancel, preview (3), settings (4), drafts (3), snippet (2), export, popup (3), serial retries, duplicate (2), pause (2), statistics, copy (2), notification, word counter (3), shortcuts (6), full backup (4) |
+| Firefox E2E (Marionette) | **10 checks ✔** | inject (page world), busy→retry, signature, persist, auto-reload, preview (2), popup closer, draft restore |
+| addons-linter | **0 error / 0 warning / 0 notice** | compliant with AMO rules |
 
-Mock server (`test/mock/`) real protokolu təkrarlayır: imza yoxlaması müstəqil
-Node crypto implementasiyası ilə, `global_limit` SSE xətası, multipart upload, persist.
+The mock server (`test/mock/`) reproduces the real protocol: signature verification via an
+independent Node crypto implementation, the `global_limit` SSE error, multipart upload, persist.
 
-## Məhdudiyyətlər / qeydlər
+## Limitations / notes
 
-- İmza alqoritmi real web tətbiqindən götürülüb. İmza **açarı** dəyişsə, 4 dəqiqədən
-  uzun retry-lər imza xətası verər → FATAL bildiriş (əvvəlki 4 dəqiqəlik replay hələ də işləyir).
-- Completion gəlsə WS nəqliyyatına keçsə, capture düşə bilər.
-- Captcha / sessiya (401) xətalarına avtomatik retry YOXDUR — yalnız bildiriş.
-- z.ai DOM dəyişsə, DOM-a bağlı köməkçilər (preview/popap/qaralama) yenilənməli ola bilər.
+- The signature algorithm is taken from the real web app. If the signature **key** changes, retries
+  longer than 4 minutes fail with a signature error → FATAL notification (the previous 4-minute replay still works).
+- If completions switch to the WS transport, the capture may break.
+- Captcha / session (401) errors get NO automatic retries — only a notification.
+- If z.ai changes its DOM, the DOM-dependent helpers (preview/popup/drafts) may need an update.
 
 ## Build
 
 ```bash
 python3 build.py          # prod → dist/chrome + dist/firefox + dist/zips/*.zip
-python3 build.py --test   # E2E üçün (localhost, sürətli backoff)
-npm run unit              # 65 unit test
-npm run e2e:chrome        # xvfb altında Chrome E2E (24 ssenari)
+python3 build.py --test   # for E2E (localhost, fast backoff)
+npm run unit              # 65 unit tests
+npm run e2e:chrome        # Chrome E2E under xvfb (24 scenarios)
 python3 test/e2e/firefox_spec.py   # Marionette Firefox E2E
-npx addons-linter dist/firefox     # AMO linteri
+npx addons-linter dist/firefox     # AMO linter
 ```
 
-Layihə strukturu:
+Project structure:
 
 ```
 src/
-  core/classifier.js   — xəta təsnifatı (hər world + Node vm)
-  core/backoff.js      — eksponensial + adaptiv gecikmə
-  core/sign.js         — X-Signature alqoritmi (HMAC-SHA256 ×2)
-  core/preview.js      — PREVIEW GUARD: avto-açılışın bloklanması
-  core/popupcloser.js  — POPAP BAĞLAYICI
-  core/drafts.js       — qaralama köməkçiləri
-  core/mdexport.js     — markdown ixracı
-  inject.js            — MAIN world: fetch/XHR yaxalama + SSE skan + retry + persist + dublikat yoxlaması
-  content.js           — ISOLATED: vəziyyət maşını, ardıcıl retry, pauza, pill, draft, snippet, sayğaç
-  background.js        — badge, bildirişlər, canlı tab, qısayollar
-  ff-bootstrap.js      — Firefox: inject.bundle.js script-teqi ilə (WAR)
-  popup/               — vəziyyət + tez ayarlar + alətlər (təmiz UI)
-  options/             — tam ayarlar səhifəsi (təmiz UI)
-  pill.css             — səhifə içi HUD (vəziyyət kartı, snippet, qaralama, sayğaç)
+  core/classifier.js   — error classification (every world + Node vm)
+  core/backoff.js      — exponential + adaptive delay
+  core/sign.js         — X-Signature algorithm (HMAC-SHA256 ×2)
+  core/preview.js      — PREVIEW GUARD: blocking auto-open
+  core/popupcloser.js  — POPUP CLOSER
+  core/drafts.js       — draft helpers
+  core/mdexport.js     — markdown export
+  inject.js            — MAIN world: fetch/XHR interception + SSE scan + retry + persist + duplicate check
+  content.js           — ISOLATED: state machine, serial retries, pause, pill, drafts, snippets, counter
+  background.js        — badge, notifications, live tab, shortcuts
+  ff-bootstrap.js      — Firefox: inject.bundle.js via a script tag (WAR)
+  popup/               — status + quick settings + tools (clean UI)
+  options/             — full settings page (clean UI)
+  pill.css             — in-page HUD (status card, snippets, drafts, counter)
   manifest.chrome.json (MV3), manifest.firefox.json (MV2)
 test/
-  unit/ mock/ e2e/     — yuxarıdakı cədvəldə
+  unit/ mock/ e2e/     — see the table above
 ```
 
-## Lisenziya
+## License
 
-MIT — bax `LICENSE`.
+MIT — see `LICENSE`.

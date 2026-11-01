@@ -21,10 +21,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Asılıqlar
+      - name: Dependencies
         run: npm ci
 
-      - name: Prod build (zip-lər)
+      - name: Prod build (zips)
         run: python3 build.py
 
       - name: SHA256SUMS
@@ -43,26 +43,26 @@ jobs:
             --notes "$(cat <<'EOF'
           ## better z.ai — ${GITHUB_REF_NAME}
 
-          **system is busy** və digər göndərmə xətalarında mesajı attachment-larla
-          birlikdə avtomatik yenidən göndərən extension (Chrome + Firefox).
+          An extension (Chrome + Firefox) that automatically resends your message
+          with its attachments on **system is busy** and other send failures.
 
-          ### Funksiyalar
-          - 🔁 Şəbəkə-səviyyəli capture/replay — attachment-lar heç bir vaxt itmir
-          - X-Signature yenidən imzalama, eksponensial + adaptiv backoff
-          - 🖼️ Preview bloku (yalnız kliklə açılır)
-          - 📝 Qaralama mühafizəsi, 🧷 mesaj xilası, ⚡ snippet kitabxanası
-          - ⤓ Söhbətin ixracı + ⤓⤓ tam backup (.md + .json)
-          - 🔔 "Cavab hazırdır" bildirişi, 🚪 popap bağlayıcı, ⏸ pauza
-          - 🎯 Ardıcıl retry, 🛡️ dublikat qorunması, 🔤 söz sayğacı
-          - ⌨️ Qısayollar: Alt+R (indi cəhd et), Alt+P (pauza), Alt+E (ixrac)
+          ### Features
+          - 🔁 Network-level capture/replay — attachments never get lost
+          - X-Signature re-signing, exponential + adaptive backoff
+          - 🖼️ Preview block (opens on click only)
+          - 📝 Draft guard, 🧷 message rescue, ⚡ snippet library
+          - ⤓ Chat export + ⤓⤓ full backup (.md + .json)
+          - 🔔 "Response is ready" notification, 🚪 popup closer, ⏸ pause
+          - 🎯 Serial retries, 🛡️ duplicate guard, 🔤 word counter
+          - ⌨️ Shortcuts: Alt+R (Retry now), Alt+P (pause), Alt+E (export)
 
-          ### Quraşdırma
-          - **Chrome**: zip-i açın → chrome://extensions → Developer mode → Load unpacked → `chrome/`
-          - **Firefox**: `better-z.ai-firefox.xpi` (və ya zip içindən `manifest.json`)
+          ### Install
+          - **Chrome**: unzip → chrome://extensions → Developer mode → Load unpacked → `chrome/`
+          - **Firefox**: `better-z.ai-firefox.xpi` (or `manifest.json` inside the zip)
             → about:debugging → Load Temporary Add-on
 
-          Testlər: unit 65/65, Chrome E2E 24 ssenari / 56 yoxlama, Firefox E2E 10
-          yoxlama, addons-linter 0/0/0. SHA256SUMS.txt faylında imzalar.
+          Tests: unit 65/65, Chrome E2E 24 scenarios / 56 checks, Firefox E2E 10
+          checks, addons-linter 0/0/0. Checksums in SHA256SUMS.txt.
           EOF
           )" \
             dist/zips/*.zip dist/zips/SHA256SUMS.txt

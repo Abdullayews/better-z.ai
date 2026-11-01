@@ -1,7 +1,7 @@
 /*
  * better z.ai — background (Chrome MV3 service worker / Firefox event page).
- * Vəzifəsi: badge, bildirişlər, canlı tab izləməsi (popup üçün), quraşdırma toxumu.
- * (Build zamanı bu faylın ƏVVƏLİNƏ core/defaults.js yapışdırılır.)
+ * Responsibilities: badge, notifications, live tab tracking (for the popup), install seed.
+ * (core/defaults.js is prepended to this file at build time.)
  */
 (function () {
   'use strict';
@@ -19,7 +19,7 @@
       chrome.storage.local.get(['aliveTab'], function (got) {
         var a = got && got.aliveTab;
         if (!a || !a.id) return cb(null);
-        if (Date.now() - (a.at || 0) > 6 * 3600000) return cb(null); // köhnədir
+        if (Date.now() - (a.at || 0) > 6 * 3600000) return cb(null); // stale
         chrome.tabs.get(a.id, function (t) {
           if (chrome.runtime.lastError || !t) return cb(null);
           cb(t);
@@ -86,20 +86,20 @@
     });
   });
 
-  /* ---------- klaviatura qısayolları (commands API) ----------
+  /* ---------- keyboard shortcuts (commands API) ----------
    *
-   * Alt+R — gözləyən mesajı dərhal yenidən göndər ("İndi cəhd et")
-   * Alt+P — avtomatik retry-ləri dayandır/davam etdir
-   * Alt+E — cari söhbəti Markdown kimi ixrac et
+   * Alt+R — resend the pending message right now ("Retry now")
+   * Alt+P — pause/resume automatic retries
+   * Alt+E — export the current chat as Markdown
    *
-   * Əmr canlı z.ai tab-inə göndərilir (content script CMD_SHORTCUT işləyir).
+   * The command is sent to the live z.ai tab (the content script handles CMD_SHORTCUT).
    */
   function sendToAliveTab(msg) {
     getAlive(function (tab) {
       if (!tab) return;
       try {
         chrome.tabs.sendMessage(tab.id, msg, function () {
-          if (chrome.runtime.lastError) { /* tab ölüdür — növbəti alive gözlənilir */ }
+          if (chrome.runtime.lastError) { /* tab is dead — wait for the next alive one */ }
         });
       } catch (e) { /* ignore */ }
     });
@@ -109,5 +109,5 @@
     chrome.commands.onCommand.addListener(function (command) {
       sendToAliveTab({ cmd: 'CMD_SHORTCUT', action: command });
     });
-  } catch (e) { /* commands dəstəklənmir */ }
+  } catch (e) { /* commands not supported */ }
 })();
