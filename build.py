@@ -4,15 +4,22 @@
 Usage:
     python3 build.py          -> prod build (dist/chrome + dist/firefox + zips)
     python3 build.py --test   -> E2E build (localhost:8907 match, fast backoff)
+    python3 build.py --wasm   -> (re)build the Rust core first, then prod build
 
 Important: a single file is produced for the MAIN world
-(inject.bundle.js = classifier+sign+inject) — sharing files with the
+(inject.bundle.js = classifier+sign+[wasm]+inject) — sharing files with the
 ISOLATED world is a Chrome dedupe problem (when the same file is in both
 groups it only executes in the first world).
+
+WASM core: if src/core/wasm-embedded.js exists (built by
+core-wasm/build-wasm.py), it + wasm-loader.js are wired into both worlds
+and the manifests. If it does not exist, the build is identical to the
+pure-JS one — nothing references the wasm.
 """
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -21,6 +28,11 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 DIST = ROOT / "dist"
 TEST = "--test" in sys.argv
+
+WASM_EMBEDDED = SRC / "core" / "wasm-embedded.js"   # generated, gitignored
+WASM_LOADER = SRC / "core" / "wasm-loader.js"
+WASM_ENTRY = "core/wasm-embedded.js"                 # manifest js path
+WASM_LOADER_ENTRY = "core/wasm-loader.js"
 
 PROD_DEFAULTS = {
     "maxRetries": 6, "initialDelayMs": 5000, "backoffFactor": 2.0,
@@ -73,6 +85,27 @@ def write_defaults(out_dir: Path) -> None:
     (out_dir / "core" / "defaults.js").write_text(js, encoding="utf-8")
 
 
+def build_wasm_first() -> None:
+    """--wasm: compile the Rust core and embed it before the extension build."""
+    script = ROOT / "core-wasm" / "build-wasm.py"
+    if not script.exists():
+        print("core-wasm/build-wasm.py not found — skipping wasm build")
+        return
+    r = subprocess.run([sys.executable, str(script)], cwd=ROOT)
+    if r.returncode != 0:
+        sys.exit("wasm build failed")
+
+
+def wire_wasm_into_manifest(m: dict) -> None:
+    """Insert the wasm files into the ISOLATED content_scripts group."""
+    for cs in m.get("content_scripts", []):
+        js = cs.get("js", [])
+        if "core/classifier.js" in js:
+            i = js.index("core/backoff.js") + 1
+            js[i:i] = [WASM_ENTRY, WASM_LOADER_ENTRY]
+            break
+
+
 def build_browser(browser: str) -> dict:
     out = DIST / browser
     if out.exists():
@@ -83,13 +116,19 @@ def build_browser(browser: str) -> dict:
     # ISOLATED world files (NOT shared with MAIN!)
     for f in ["classifier.js", "backoff.js", "drafts.js", "preview.js", "popupcloser.js", "mdexport.js"]:
         shutil.copy2(SRC / "core" / f, out / "core" / f)
+    has_wasm = WASM_EMBEDDED.is_file() and WASM_LOADER.is_file()
+    if has_wasm:
+        # wasm-embedded.js (base64 blob) + wasm-loader.js (patches __zaiExtCore)
+        shutil.copy2(WASM_EMBEDDED, out / "core" / "wasm-embedded.js")
+        shutil.copy2(WASM_LOADER, out / "core" / "wasm-loader.js")
     write_defaults(out)
 
-    # MAIN world single bundle: classifier + sign + inject
-    (out / "inject.bundle.js").write_text(
-        cat([SRC / "core" / "classifier.js", SRC / "core" / "sign.js", SRC / "inject.js"]),
-        encoding="utf-8"
-    )
+    # MAIN world single bundle: classifier + sign + [wasm] + inject
+    main_files = [SRC / "core" / "classifier.js", SRC / "core" / "sign.js"]
+    if has_wasm:
+        main_files += [WASM_EMBEDDED, WASM_LOADER]
+    main_files.append(SRC / "inject.js")
+    (out / "inject.bundle.js").write_text(cat(main_files), encoding="utf-8")
 
     for f in ["content.js", "pill.css"]:
         shutil.copy2(SRC / f, out / f)
@@ -110,6 +149,8 @@ def build_browser(browser: str) -> dict:
         for cs in m.get("content_scripts", []):
             # localhost on any port (a port-specific pattern may be rejected by Firefox)
             cs["matches"] = ["http://localhost/*"] + cs["matches"]
+    if has_wasm:
+        wire_wasm_into_manifest(m)
     (out / "manifest.json").write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
     return m
 
@@ -129,12 +170,15 @@ def zip_browser(browser: str) -> Path:
 
 
 def main() -> None:
+    if "--wasm" in sys.argv:
+        build_wasm_first()
     mc = build_browser("chrome")
     mf = build_browser("firefox")
     assert mc["version"] == mf["version"], "manifest versions differ!"
     assert mc["name"] == mf["name"], "manifest names differ!"
     mode = "TEST" if TEST else "PROD"
-    print(f"build {mode} → dist/chrome, dist/firefox")
+    wasm = " · WASM core" if WASM_EMBEDDED.is_file() else " · pure JS core"
+    print(f"build {mode}{wasm} → dist/chrome, dist/firefox")
 
     if not TEST:
         for b in ["chrome", "firefox"]:

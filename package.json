@@ -6,7 +6,11 @@
   "scripts": {
     "build": "python3 build.py",
     "build:test": "python3 build.py --test",
+    "build:wasm": "python3 core-wasm/build-wasm.py",
+    "build:all": "python3 build.py --wasm",
     "unit": "node --test 'test/unit/*.test.mjs'",
+    "unit:dist": "node --test test/differential/dist-bundle.test.mjs",
+    "vectors": "node test/differential/gen-vectors.mjs",
     "e2e:chrome": "xvfb-run -a node test/e2e/chrome.spec.mjs",
     "e2e:firefox": "python3 test/e2e/firefox_spec.py",
     "e2e:chrome:headless": "node test/e2e/chrome.spec.mjs",
@@ -14,7 +18,7 @@
     "mock": "node test/mock/server.js"
   },
   "devDependencies": {
-    "addons-linter": "^7.9.0",
+    "addons-linter": "^7.20.0",
     "playwright": "^1.57.0"
   }
 }

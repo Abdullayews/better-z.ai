@@ -124,11 +124,17 @@ independent Node crypto implementation, the `global_limit` SSE error, multipart 
 ```bash
 python3 build.py          # prod → dist/chrome + dist/firefox + dist/zips/*.zip
 python3 build.py --test   # for E2E (localhost, fast backoff)
-npm run unit              # 67 unit tests
+python3 build.py --wasm   # (re)build the Rust core, then prod build
+npm run unit              # 85 unit tests (67 core + 18 wasm differential)
+npm run unit:dist         # built dist bundle: wasm active + matches the JS reference
 npm run e2e:chrome        # Chrome E2E under xvfb (25 scenarios)
 python3 test/e2e/firefox_spec.py   # Marionette Firefox E2E
 npx addons-linter dist/firefox     # AMO linter
 ```
+
+The core (sign / backoff / classifier) is additionally implemented in Rust
+and compiled to WebAssembly — see **[README-WASM.md](README-WASM.md)**.
+It is optional: without `src/core/wasm-embedded.js` the build is pure JS.
 
 Project structure:
 
@@ -137,6 +143,8 @@ src/
   core/classifier.js   — error classification (every world + Node vm)
   core/backoff.js      — exponential + adaptive delay
   core/sign.js         — X-Signature algorithm (HMAC-SHA256 ×2)
+  core/wasm-loader.js  — loads the Rust/WASM core, patches __zaiExtCore (JS fallback per call)
+  core/wasm-embedded.js — GENERATED base64 blob (core-wasm/build-wasm.py, gitignored)
   core/preview.js      — PREVIEW GUARD: blocking auto-open
   core/popupcloser.js  — POPUP CLOSER
   core/drafts.js       — draft helpers
@@ -149,8 +157,12 @@ src/
   options/             — full settings page (clean UI)
   pill.css             — in-page HUD (status card, snippets, drafts, counter)
   manifest.chrome.json (MV3), manifest.firefox.json (MV2)
+core-wasm/             — Rust core → WASM (see README-WASM.md)
+  src/sign.rs, backoff.rs, classifier.rs, dates.rs, jsutil.rs, lib.rs
+  tests/vectors.rs     — differential test vs the JS reference (1053 vectors)
+  build-wasm.py        — cargo build + base64 embed
 test/
-  unit/ mock/ e2e/     — see the table above
+  unit/ mock/ e2e/ differential/  — see the table above
 ```
 
 ## License
