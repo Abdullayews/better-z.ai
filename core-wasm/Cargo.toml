@@ -1,0 +1,28 @@
+[package]
+name = "zai-core-wasm"
+version = "1.4.0"
+edition = "2021"
+description = "better z.ai — Rust core (sign / backoff / classifier) compiled to WebAssembly. Differential-tested against src/core/*.js."
+license = "MIT"
+
+[lib]
+# cdylib → the .wasm artifact loaded by src/core/wasm-loader.js
+# rlib   → cargo test (native) can link the same logic
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# patterns are plain literal alternations matched with /i — only std +
+# unicode (simple) case folding is needed; dropping the other unicode
+# tables (perl classes, scripts, …) saves several hundred KB of wasm.
+regex = { version = "1", default-features = false, features = ["std", "unicode-case"] }
+
+[profile.release]
+opt-level = "z"     # optimize for size
+lto = true
+panic = "abort"     # a panic becomes a WASM trap → JS exception → loader fallback
+strip = true        # drop the name/debug sections
