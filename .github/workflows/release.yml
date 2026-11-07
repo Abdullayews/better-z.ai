@@ -46,11 +46,13 @@ jobs:
           An extension (Chrome + Firefox) that automatically resends your message
           with its attachments on **system is busy** and other send failures.
 
-          ### Features
+          ### New in this release
+          - ⚡ Rust/WASM core (signature, backoff, classification) with a pure-JS
+            fallback — verified by 1053 differential test vectors
+          - 🤖 Captcha errors now retry after just 1 second (files preserved)
           - 🔁 Network-level capture/replay — attachments never get lost
           - X-Signature re-signing, exponential + adaptive backoff
-          - 🖼️ Preview block (opens on click only)
-          - 📝 Draft guard, 🧷 message rescue, ⚡ snippet library
+          - 🖼️ Preview block, 📝 draft guard, 🧷 message rescue, ⚡ snippet library
           - ⤓ Chat export + ⤓⤓ full backup (.md + .json)
           - 🔔 "Response is ready" notification, 🚪 popup closer, ⏸ pause
           - 🎯 Serial retries, 🛡️ duplicate guard, 🔤 word counter
@@ -61,7 +63,7 @@ jobs:
           - **Firefox**: `better-z.ai-firefox.xpi` (or `manifest.json` inside the zip)
             → about:debugging → Load Temporary Add-on
 
-          Tests: unit 65/65, Chrome E2E 24 scenarios / 56 checks, Firefox E2E 10
+          Tests: unit 85/85, Chrome E2E 24 scenarios / 56 checks, Firefox E2E 10
           checks, addons-linter 0/0/0. Checksums in SHA256SUMS.txt.
           EOF
           )" \
