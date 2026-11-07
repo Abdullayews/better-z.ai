@@ -6,4 +6,3 @@ test/.artifacts/
 # Rust/WASM core build artifacts
 core-wasm/target/
 core-wasm/Cargo.lock
-src/core/wasm-embedded.js
