@@ -144,7 +144,7 @@ src/
   core/backoff.js      — exponential + adaptive delay
   core/sign.js         — X-Signature algorithm (HMAC-SHA256 ×2)
   core/wasm-loader.js  — loads the Rust/WASM core, patches __zaiExtCore (JS fallback per call)
-  core/wasm-embedded.js — GENERATED base64 blob (core-wasm/build-wasm.py, gitignored)
+  core/wasm-embedded.js — compiled base64 blob (core-wasm/build-wasm.py, tracked)
   core/preview.js      — PREVIEW GUARD: blocking auto-open
   core/popupcloser.js  — POPUP CLOSER
   core/drafts.js       — draft helpers

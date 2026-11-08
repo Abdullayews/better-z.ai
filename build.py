@@ -29,7 +29,7 @@ SRC = ROOT / "src"
 DIST = ROOT / "dist"
 TEST = "--test" in sys.argv
 
-WASM_EMBEDDED = SRC / "core" / "wasm-embedded.js"   # generated, gitignored
+WASM_EMBEDDED = SRC / "core" / "wasm-embedded.js"   # compiled build artifact
 WASM_LOADER = SRC / "core" / "wasm-loader.js"
 WASM_ENTRY = "core/wasm-embedded.js"                 # manifest js path
 WASM_LOADER_ENTRY = "core/wasm-loader.js"
@@ -78,7 +78,7 @@ def cat(paths):
 
 def write_defaults(out_dir: Path) -> None:
     d = TEST_DEFAULTS if TEST else PROD_DEFAULTS
-    js = ("/* auto-generated — build.py */\n"
+    js = ("/* build output — build.py */\n"
           "(function (r) { r.__zaiExtDefaults = ")
     js += json.dumps(d, ensure_ascii=False)
     js += "; })(typeof self !== 'undefined' ? self : globalThis);\n"

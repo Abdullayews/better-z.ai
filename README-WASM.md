@@ -45,7 +45,7 @@ DOM-dependent modules (`drafts.js`, `preview.js`, `popupcloser.js`,
 ## Why this design
 
 - **Zero-import C-ABI** (`walloc`/`wreset` + `wz_*` exports): no
-  wasm-bindgen, no generated glue. The binary is instantiated
+  wasm-bindgen, no toolchain glue. The binary is instantiated
   **synchronously** from an inline base64 blob — required because
   `inject.js` hooks `fetch` at `document_start`, before any async callback
   would run, and because the MAIN world cannot `fetch()` a
